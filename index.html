@@ -1,0 +1,3574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geo Engine</title>
+
+  <!-- GE Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a1a1a'/%3E%3Crect x='4' y='4' width='56' height='56' rx='10' fill='none' stroke='%2338b6ff' stroke-width='3'/%3E%3Ctext x='32' y='44' font-family='Arial, sans-serif' font-size='32' font-weight='900' fill='%23ffffff' text-anchor='middle'%3EGE%3C/text%3E%3C/svg%3E">
+
+  <!-- 20+ Popular Game Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Audiowide&family=Bangers&family=Black+Ops+One&family=Bungee&family=Cinzel:wght@700&family=Comic+Neue:wght@700&family=Creepster&family=Faster+One&family=Fredoka:wght@600&family=Luckiest+Guy&family=MedievalSharp&family=Monoton&family=Orbitron:wght@700&family=Permanent+Marker&family=Press+Start+2P&family=Righteous&family=Russo+One&family=Share+Tech+Mono&family=Silkscreen&family=Special+Elite&family=VT323&family=Wallpoet&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #272727;
+    }
+
+    .engine-container {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      position: relative;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      background-color: #262626;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 7px;
+      flex-shrink: 0;
+      z-index: 10;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .tool-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .tool-btn:hover { background-color: rgba(255, 255, 255, 0.08); }
+    .tool-btn.active { background-color: #1f5077; border-color: #38b6ff; }
+    .tool-btn.btn-play.playing { background-color: #1b5e20; border-color: #4caf50; }
+
+    .icon-wrapper {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-wrapper svg { width: 100%; height: 100%; }
+
+    .tool-label {
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 38px;
+      background-color: #4a4a4a;
+      margin: 0 2px;
+    }
+
+    /* Scene Switcher */
+    .scene-selector-box {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-right: 4px;
+    }
+    .scene-selector-box span { font-size: 9px; color: #aaa; text-transform: uppercase; }
+    .scene-controls-row { display: flex; gap: 4px; align-items: center; }
+
+    /* 3D Viewport */
+    .viewport {
+      flex: 1;
+      width: 100%;
+      height: calc(100vh - 68px);
+      position: relative;
+      background-color: #38b6ff;
+      overflow: hidden;
+    }
+
+    #viewport-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      cursor: default;
+    }
+
+    /* Tiny Viewport Overlay Controls */
+    .viewport-overlay-controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 15;
+    }
+
+    .tiny-btn {
+      width: 28px;
+      height: 28px;
+      background: rgba(30, 30, 30, 0.75);
+      border: 1px solid #555;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .tiny-btn:hover { background: rgba(50, 50, 50, 0.95); border-color: #38b6ff; }
+    .tiny-btn.active { background: #1f5077; border-color: #38b6ff; }
+    .tiny-btn svg { width: 15px; height: 15px; fill: #ffffff; }
+
+    .tiny-select {
+      height: 28px;
+      background: rgba(30, 30, 30, 0.85);
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #ffffff;
+      font-size: 11px;
+      padding: 0 6px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Floating Draggable Panels */
+    .engine-panel {
+      position: absolute;
+      width: 310px;
+      background-color: #222222;
+      border: 1px solid #38b6ff;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      color: #ffffff;
+      font-size: 12px;
+      max-height: 82vh;
+    }
+
+    #properties-panel { top: 78px; right: 16px; }
+    #create-panel { top: 78px; left: 16px; width: 280px; }
+    #assets-panel { top: 78px; left: 110px; width: 450px; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      background-color: #1a1a1a;
+      border-bottom: 1px solid #333333;
+      border-radius: 5px 5px 0 0;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: move;
+    }
+    .panel-header span { pointer-events: none; }
+
+    .close-btn { background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer; }
+    .close-btn:hover { color: #fff; }
+
+    .panel-body {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      max-height: calc(82vh - 45px);
+    }
+
+    /* Clean Collapsible Accordions */
+    .accordion-section {
+      border: 1px solid #333;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #1c1c1c;
+    }
+    .accordion-header {
+      padding: 8px 10px;
+      background: #252525;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: bold;
+      font-size: 11px;
+      color: #38b6ff;
+    }
+    .accordion-header:hover { background: #2e2e2e; }
+    .accordion-body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .accordion-section.collapsed .accordion-body { display: none; }
+    .accordion-section.collapsed .acc-arrow { transform: rotate(-90deg); }
+    .acc-arrow { transition: transform 0.15s ease; font-size: 9px; }
+
+    .prop-group { display: flex; flex-direction: column; gap: 4px; }
+    .prop-label { font-weight: 600; color: #bbbbbb; font-size: 10.5px; text-transform: uppercase; }
+
+    .prop-input, .prop-select {
+      width: 100%;
+      background-color: #141414;
+      border: 1px solid #3a3a3a;
+      color: #ffffff;
+      padding: 5px 8px;
+      border-radius: 4px;
+      outline: none;
+      font-size: 11px;
+    }
+
+    .pos-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .axis-field {
+      display: flex; align-items: center; background-color: #141414; border: 1px solid #3a3a3a; border-radius: 4px; padding: 2px 4px;
+    }
+    .axis-field span { font-weight: bold; font-size: 11px; margin-right: 4px; }
+    .axis-field.x span { color: #ff5555; }
+    .axis-field.y span { color: #55ff55; }
+    .axis-field.z span { color: #5599ff; }
+    .axis-field input { width: 100%; background: transparent; border: none; color: #fff; font-size: 11px; outline: none; }
+
+    .slider-row { display: flex; align-items: center; gap: 8px; }
+    .slider-row input[type="range"] { flex: 1; accent-color: #38b6ff; }
+
+    .color-row { display: flex; align-items: center; gap: 10px; }
+    input[type="color"] {
+      -webkit-appearance: none; border: 1px solid #444; width: 36px; height: 26px; border-radius: 4px; background: none; cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .checkbox-row input[type="checkbox"] {
+      accent-color: #38b6ff;
+      width: 15px; height: 15px;
+      cursor: pointer;
+    }
+
+    .file-upload-btn, .action-btn {
+      display: inline-block; text-align: center; padding: 7px 10px; background-color: #2f2f2f; border: 1px solid #444; border-radius: 4px; color: #dddddd; cursor: pointer; font-size: 11px; font-weight: 600;
+    }
+    .action-btn { background-color: #1f5077; border-color: #38b6ff; color: #fff; }
+    .action-btn:hover { background-color: #2a6ca0; }
+    .remove-texture-btn { background: none; border: none; color: #ff5555; font-size: 11px; cursor: pointer; text-decoration: underline; align-self: flex-start; }
+    
+    input[type="file"] { display: none; }
+    .texture-preview-name { font-size: 10px; color: #888888; }
+
+    /* Assets Manager Grid */
+    .assets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 10px;
+      max-height: 240px;
+      overflow-y: auto;
+      padding: 4px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: #181818;
+    }
+    .asset-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #222;
+      text-align: center;
+    }
+    .asset-item:hover { border-color: #38b6ff; background: #2a2a2a; }
+    .asset-item.selected { border-color: #38b6ff; background: #1f5077; }
+    .asset-icon { font-size: 22px; margin-bottom: 4px; }
+    .asset-name { font-size: 10px; word-break: break-all; color: #ddd; }
+
+    /* Full-Viewport Scripting IDEs */
+    .fullscreen-ide {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: #1e1e1e;
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+    }
+    .script-header {
+      height: 44px; background-color: #2d2d2d; border-bottom: 1px solid #3c3c3c;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 16px; color: #ccc; font-size: 12px; font-weight: bold;
+    }
+    .script-header-left, .script-header-right { display: flex; align-items: center; gap: 8px; }
+    .script-header-btn {
+      background-color: #38b6ff; color: #111; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;
+    }
+    .script-header-btn.secondary { background-color: #444; color: #fff; }
+
+    .script-editor-main {
+      flex: 1; display: flex; position: relative; overflow: hidden;
+      font-family: 'Consolas', 'Courier New', Courier, monospace; font-size: 14px; line-height: 22px;
+    }
+    .line-numbers {
+      width: 55px; background-color: #252526; color: #858585; text-align: right;
+      padding: 12px 10px 12px 0; user-select: none; border-right: 1px solid #333; white-space: pre; overflow: hidden;
+    }
+    .code-container { flex: 1; position: relative; height: 100%; overflow: hidden; }
+    .script-hl, .script-ta {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      padding: 12px; margin: 0; border: 0; font-family: inherit; font-size: inherit; line-height: inherit;
+      white-space: pre; overflow: auto; tab-size: 2; box-sizing: border-box;
+    }
+    .script-ta {
+      color: transparent; background: transparent; caret-color: #fff; resize: none; outline: none; z-index: 2;
+      user-select: text; -webkit-user-select: text;
+    }
+    .script-hl { z-index: 1; pointer-events: none; background-color: #1e1e1e; color: #d4d4d4; }
+
+    .token-keyword { color: #c586c0; font-weight: bold; }
+    .token-string { color: #ce9178; }
+    .token-number { color: #b5cea8; }
+    .token-condition { color: #4ec9b0; font-weight: bold; }
+    .token-comment { color: #6a9955; font-style: italic; }
+    .token-error { text-decoration: underline wavy #f44336; background: rgba(244, 67, 54, 0.15); }
+
+    /* Script Autocomplete / Type Hints */
+    #script-suggestions {
+      position: absolute;
+      background: #252526;
+      border: 1px solid #38b6ff;
+      border-radius: 4px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      width: 320px;
+    }
+    .suggestion-item {
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #eee;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid #333;
+    }
+    .suggestion-item:hover, .suggestion-item.active {
+      background: #1f5077;
+      color: #fff;
+    }
+    .suggestion-syntax { font-weight: bold; color: #38b6ff; }
+    .suggestion-item:hover .suggestion-syntax, .suggestion-item.active .suggestion-syntax { color: #fff; }
+    .suggestion-desc { font-size: 9.5px; color: #aaa; margin-top: 1px; }
+
+    .script-statusbar {
+      height: 26px; background-color: #007acc; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px;
+    }
+    .script-statusbar.has-error { background-color: #d32f2f; }
+
+    /* UI Editor Studio App */
+    #ui-editor-app {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: #181818;
+      z-index: 45;
+      display: none;
+      flex-direction: column;
+    }
+
+    .ui-editor-header {
+      height: 44px;
+      background-color: #262626;
+      border-bottom: 1px solid #383838;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      color: #fff;
+      font-size: 12px;
+      z-index: 5;
+    }
+
+    .ui-tools-left, .ui-tools-right { display: flex; align-items: center; gap: 8px; }
+
+    .ui-editor-workspace {
+      flex: 1;
+      position: relative;
+      background-color: #1e1e1e;
+      background-image: radial-gradient(#333 1px, transparent 1px);
+      background-size: 20px 20px;
+      overflow: hidden;
+    }
+
+    /* In-Game / UI Canvas */
+    #game-ui-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 25;
+      display: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .ui-element {
+      position: absolute;
+      cursor: pointer;
+      pointer-events: auto;
+      box-sizing: border-box;
+      transform-origin: center center;
+    }
+    .ui-element.selected { outline: 2px dashed #38b6ff !important; }
+
+    .ui-box { background: #3a3a3a; border: 1px solid #555; }
+    .ui-box.smooth { border-radius: 14px; }
+    .ui-text { color: #ffffff; font-size: 16px; padding: 4px; }
+    .ui-title { color: #ffffff; font-size: 32px; font-weight: bold; padding: 4px; }
+    .ui-textbox { background: #222; border: 1px solid #666; color: #fff; padding: 8px 12px; font-size: 14px; }
+    .ui-textbox.smooth { border-radius: 12px; }
+    .ui-image { object-fit: contain; }
+
+    /* UI Editor Properties Window */
+    #ui-properties-panel {
+      position: absolute;
+      top: 54px;
+      right: 16px;
+      width: 270px;
+      background: #242424;
+      border: 1px solid #38b6ff;
+      border-radius: 6px;
+      color: #fff;
+      display: none;
+      flex-direction: column;
+      z-index: 50;
+      max-height: 85vh;
+    }
+
+    /* Fullscreen MP4 Video Overlay */
+    #fullscreen-video-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #000;
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #fullscreen-video-player {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+
+    /* In-Game RPG Dialog & Speech */
+    #engine-dialog-box {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      width: 75%; max-width: 600px; background: rgba(18, 18, 18, 0.94); border: 2px solid #38b6ff;
+      border-radius: 8px; padding: 14px 20px; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      display: none; flex-direction: column; gap: 6px; z-index: 35; pointer-events: none;
+    }
+    .dialog-name { font-weight: bold; color: #38b6ff; font-size: 13px; text-transform: uppercase; }
+    .dialog-text { font-size: 14px; line-height: 20px; }
+
+    .speech-bubble {
+      position: absolute; background: #fff; color: #000; padding: 8px 12px; border-radius: 12px;
+      font-size: 12px; font-weight: 500; box-shadow: 0 4px 14px rgba(0,0,0,0.4); pointer-events: none;
+      transform: translate(-50%, -100%); display: none; z-index: 34; white-space: nowrap;
+    }
+    .speech-bubble::after {
+      content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+      border-width: 6px 6px 0; border-style: solid; border-color: #fff transparent;
+    }
+
+    #engine-console {
+      position: absolute; bottom: 12px; left: 12px; max-width: 400px; max-height: 160px;
+      background: rgba(20, 20, 20, 0.85); border: 1px solid #444; border-radius: 6px;
+      padding: 8px 12px; color: #fff; font-family: 'Consolas', monospace; font-size: 12px;
+      overflow-y: auto; display: none; pointer-events: none; z-index: 32;
+    }
+    .console-line { margin-bottom: 4px; color: #a9ff86; }
+  </style>
+
+  <!-- Three.js + Loaders + Cannon.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+
+  <div class="engine-container">
+    <header class="top-bar">
+      <!-- Scene / Level Manager -->
+      <div class="scene-selector-box">
+        <span>Level / Scene</span>
+        <div class="scene-controls-row">
+          <select class="prop-select" id="scene-selector" style="width: 95px; height: 26px; padding: 2px 4px;"></select>
+          <button class="script-header-btn secondary" id="btn-add-scene" style="padding: 2px 6px;" title="New Scene">+</button>
+          <button class="script-header-btn secondary" id="btn-delete-scene" style="padding: 2px 6px; color: #ff6b6b;" title="Delete Current Scene">-</button>
+        </div>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Create -->
+      <button class="tool-btn" id="btn-create" type="button" title="Create">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><rect x="3" y="3" width="30" height="30" rx="8" fill="#ffffff" stroke="#000000" stroke-width="3" /><path d="M 18 9 L 18 27 M 9 18 L 27 18" stroke="#000000" stroke-width="4.5" stroke-linecap="round" /></svg></div>
+        <span class="tool-label">Create</span>
+      </button>
+
+      <!-- Properties -->
+      <button class="tool-btn" id="btn-properties" type="button" title="Properties">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 15 3 L 21 3 L 22 7 L 25.5 8.5 L 29 6 L 33 10 L 30.5 13.5 L 32 17 L 36 18 L 36 22 L 32 23 L 30.5 26.5 L 33 30 L 29 34 L 25.5 31.5 L 22 33 L 21 37 L 15 37 L 14 33 L 10.5 31.5 L 7 34 L 3 30 L 5.5 26.5 L 4 23 L 0 22 L 0 18 L 4 17 L 5.5 13.5 L 3 10 L 7 6 L 10.5 8.5 L 14 7 Z" fill="#ffffff" stroke="#000000" stroke-width="2.5" stroke-linejoin="round" /><circle cx="18" cy="20" r="5" fill="#262626" stroke="#000000" stroke-width="2" /></svg></div>
+        <span class="tool-label">Properties</span>
+      </button>
+
+      <!-- Scripting -->
+      <button class="tool-btn" id="btn-scripting" type="button" title="Scripting">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 6 4 L 24 4 L 30 10 L 30 32 L 6 32 Z" fill="#ffffff" stroke="#000000" stroke-width="2.5" stroke-linejoin="round" /><path d="M 24 4 L 24 10 L 30 10" fill="#e0e0e0" stroke="#000000" stroke-width="2" stroke-linejoin="round" /><line x1="11" y1="15" x2="25" y2="15" stroke="#000000" stroke-width="3" stroke-linecap="round" /><line x1="11" y1="21" x2="25" y2="21" stroke="#000000" stroke-width="3" stroke-linecap="round" /><line x1="11" y1="27" x2="19" y2="27" stroke="#000000" stroke-width="3" stroke-linecap="round" /></svg></div>
+        <span class="tool-label">Scripting</span>
+      </button>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Move, Size, Rotate -->
+      <button class="tool-btn active" id="btn-move" type="button" title="Move">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 18 3 L 14 8 H 16 V 16 H 8 V 14 L 3 18 L 8 22 V 20 H 16 V 28 H 14 L 18 33 L 22 28 H 20 V 20 H 28 V 22 L 33 18 L 28 14 V 16 H 20 V 8 H 22 Z" fill="#ffffff" stroke="#000000" stroke-width="1.8" stroke-linejoin="round" /></svg></div>
+        <span class="tool-label">Move</span>
+      </button>
+      <button class="tool-btn" id="btn-size" type="button" title="Size">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><rect x="5" y="5" width="26" height="26" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="3,3" /><rect x="3" y="3" width="7" height="7" fill="#ffffff" stroke="#000000" stroke-width="1.5" /><rect x="26" y="3" width="7" height="7" fill="#ffffff" stroke="#000000" stroke-width="1.5" /><rect x="3" y="26" width="7" height="7" fill="#ffffff" stroke="#000000" stroke-width="1.5" /><rect x="26" y="26" width="7" height="7" fill="#ffffff" stroke="#000000" stroke-width="1.5" /></svg></div>
+        <span class="tool-label">Size</span>
+      </button>
+      <button class="tool-btn" id="btn-rotate" type="button" title="Rotation">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 18 6 A 12 12 0 1 1 7.5 13" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" /><polygon points="18,1 23,6 18,11" fill="#ffffff" stroke="#000000" stroke-width="1.5" /></svg></div>
+        <span class="tool-label">Rotation</span>
+      </button>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Save & Import -->
+      <button class="tool-btn" id="btn-save" type="button" title="Save Everything (.ge3)">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 6 4 L 26 4 L 30 8 L 30 32 L 6 32 Z" fill="#ffffff" stroke="#000000" stroke-width="2.2" stroke-linejoin="round" /><rect x="10" y="4" width="12" height="9" fill="#222222" /><rect x="10" y="19" width="16" height="13" fill="#dddddd" stroke="#000000" stroke-width="1.5" /></svg></div>
+        <span class="tool-label">Save</span>
+      </button>
+      <button class="tool-btn" id="btn-import" type="button" title="Import (.ge3)">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 4 8 L 13 8 L 16 12 L 32 12 L 32 28 L 4 28 Z" fill="#ffffff" stroke="#000000" stroke-width="2.2" stroke-linejoin="round" /><path d="M 18 16 L 18 24 M 15 19 L 18 16 L 21 19" stroke="#222" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+        <span class="tool-label">Import</span>
+      </button>
+      <input type="file" id="import-file-input" accept=".ge3,.json">
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Play & Stop -->
+      <button class="tool-btn btn-play" id="btn-play" type="button" title="Play Game">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><polygon points="10,6 30,18 10,30" fill="#4caf50" stroke="#000000" stroke-width="2" stroke-linejoin="round" /></svg></div>
+        <span class="tool-label" style="color: #69f0ae;">Play</span>
+      </button>
+      <button class="tool-btn" id="btn-stop" type="button" title="Stop Game">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><rect x="8" y="8" width="20" height="20" rx="3" fill="#f44336" stroke="#000000" stroke-width="2" /></svg></div>
+        <span class="tool-label" style="color: #ff8a80;">Stop</span>
+      </button>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Assets -->
+      <button class="tool-btn" id="btn-assets" type="button" title="Assets Manager">
+        <div class="icon-wrapper"><svg viewBox="0 0 36 36"><path d="M 4 8 L 14 8 L 18 12 L 32 12 L 32 30 L 4 30 Z" fill="#ffb300" stroke="#000000" stroke-width="2" /><polygon points="18,16 28,16 22,26 12,26" fill="#ffe082" /></svg></div>
+        <span class="tool-label" style="color: #ffd54f;">Assets</span>
+      </button>
+
+      <!-- UI Editor Button -->
+      <button class="tool-btn" id="btn-ui" type="button" title="UI Editor">
+        <div class="icon-wrapper">
+          <svg viewBox="0 0 36 36">
+            <rect x="4" y="6" width="28" height="24" rx="4" fill="#38b6ff" stroke="#000" stroke-width="2"/>
+            <rect x="8" y="10" width="10" height="6" rx="1" fill="#ffffff" />
+            <rect x="8" y="19" width="20" height="3" rx="1" fill="#ffffff" />
+            <rect x="8" y="24" width="14" height="2" rx="1" fill="#ffffff" />
+          </svg>
+        </div>
+        <span class="tool-label" style="color: #80d8ff;">UI Editor</span>
+      </button>
+    </header>
+
+    <!-- Viewport Area -->
+    <main class="viewport" id="viewport-container">
+      <canvas id="viewport-canvas"></canvas>
+
+      <!-- Tiny Viewport Overlay Controls -->
+      <div class="viewport-overlay-controls" id="viewport-overlay-controls">
+        <button class="tiny-btn" id="btn-fullscreen-viewport" title="Fullscreen Viewport">
+          <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        </button>
+        <button class="tiny-btn" id="btn-toggle-camera-view" title="Toggle Camera View">
+          <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+        </button>
+        <select class="tiny-select" id="snap-select" title="Grid Snapping">
+          <option value="0">Snap: Off</option>
+          <option value="1">Snap: 1.0 sq</option>
+          <option value="0.5">Snap: 0.5 sq</option>
+        </select>
+      </div>
+
+      <!-- In-Game / UI Elements Canvas -->
+      <div id="game-ui-canvas"></div>
+
+      <!-- Fullscreen MP4 Video Player Overlay -->
+      <div id="fullscreen-video-overlay">
+        <video id="fullscreen-video-player" playsinline></video>
+      </div>
+
+      <!-- In-Engine RPG Dialog & Speech -->
+      <div id="engine-dialog-box">
+        <div class="dialog-name" id="dialog-speaker-name">Speaker</div>
+        <div class="dialog-text" id="dialog-message-text">Message</div>
+      </div>
+      <div class="speech-bubble" id="engine-speech-bubble">Speech</div>
+      <div id="engine-console"></div>
+
+      <!-- Full-Viewport Scripting App -->
+      <div id="script-app" class="fullscreen-ide">
+        <div class="script-header">
+          <div class="script-header-left">
+            <span>Script:</span>
+            <select class="prop-select" id="ide-script-selector" style="width: 140px;"></select>
+            <button class="script-header-btn" id="btn-new-script">+ New</button>
+            <button class="script-header-btn secondary" id="btn-delete-script">Delete</button>
+          </div>
+          <div class="script-header-right">
+            <button class="script-header-btn" id="btn-run-script">Run</button>
+            <button class="script-header-btn secondary" id="btn-close-script">Exit Editor</button>
+          </div>
+        </div>
+        <div class="script-editor-main">
+          <div class="line-numbers" id="line-numbers">1.</div>
+          <div class="code-container">
+            <pre class="script-hl" aria-hidden="true"><code id="highlighting-content"></code></pre>
+            <textarea class="script-ta" id="script-textarea" spellcheck="false"></textarea>
+            <!-- Autocomplete / Type Hints Dropdown -->
+            <div id="script-suggestions"></div>
+          </div>
+        </div>
+        <div class="script-statusbar" id="script-statusbar">
+          <span id="statusbar-text">✓ No syntax errors</span>
+          <span style="color: #bbb; font-size: 10.5px;">Type Hints: Move, Glide, Rotate, Physics, Bounce, Camera, Dialog, Wait...</span>
+        </div>
+      </div>
+
+      <!-- Full-Viewport UI Scripting App -->
+      <div id="ui-script-app" class="fullscreen-ide">
+        <div class="script-header">
+          <div class="script-header-left">
+            <span style="color: #38b6ff;">UI Editor</span>
+          </div>
+          <div class="script-header-right">
+            <button class="script-header-btn close" id="btn-close-ui-script">Exit UI Scripting</button>
+          </div>
+        </div>
+        <div class="script-editor-main">
+          <div class="line-numbers" id="ui-line-numbers">1.</div>
+          <div class="code-container">
+            <pre class="script-hl" aria-hidden="true"><code id="ui-highlighting-content"></code></pre>
+            <textarea class="script-ta" id="ui-script-textarea" spellcheck="false"></textarea>
+          </div>
+        </div>
+        <div class="script-statusbar" id="ui-script-statusbar">
+          <span id="ui-statusbar-text">✓ Universal UI Script</span>
+        </div>
+      </div>
+
+      <!-- UI Editor Studio App -->
+      <div id="ui-editor-app">
+        <div class="ui-editor-header">
+          <div class="ui-tools-left">
+            <span style="font-weight: bold; color: #38b6ff; margin-right: 4px;">UI Editor</span>
+            <select class="prop-select" id="ui-add-element-select" style="width: 145px;">
+              <option value="">+ Elements</option>
+              <option value="box">Box</option>
+              <option value="smooth-box">Smooth Box</option>
+              <option value="text">Text</option>
+              <option value="textbox">Text Box</option>
+              <option value="smooth-textbox">Smooth Text Box</option>
+              <option value="title">Title</option>
+              <option value="image">Image</option>
+            </select>
+            <button class="script-header-btn" id="btn-ui-move">Move</button>
+            <button class="script-header-btn secondary" id="btn-ui-size">Size</button>
+            <button class="script-header-btn secondary" id="btn-ui-rotate">Rotate</button>
+            <button class="script-header-btn secondary" id="btn-ui-snap" title="Toggle Centering & Snapping">Snap: ON</button>
+            <button class="script-header-btn secondary" id="btn-ui-properties">Properties</button>
+            <button class="script-header-btn secondary" id="btn-open-ui-scripting" style="color: #38b6ff;">UI Scripting</button>
+          </div>
+          <div class="ui-tools-right">
+            <button class="script-header-btn close" id="btn-close-ui-editor">Exit UI Editor</button>
+          </div>
+        </div>
+
+        <div class="ui-editor-workspace" id="ui-workspace"></div>
+
+        <!-- UI Properties Panel (Draggable) -->
+        <div id="ui-properties-panel" class="engine-panel">
+          <div class="panel-header" id="ui-properties-header">
+            <span id="ui-prop-name-title">UI Properties</span>
+            <button class="close-btn" id="btn-close-ui-props">✕</button>
+          </div>
+          <div class="panel-body">
+            <div class="prop-group">
+              <span class="prop-label">Element Name</span>
+              <input type="text" class="prop-input" id="ui-prop-element-name">
+            </div>
+            <div class="prop-group" id="ui-text-prop-group">
+              <span class="prop-label">Text Content</span>
+              <input type="text" class="prop-input" id="ui-prop-text">
+            </div>
+            <!-- 20+ Game Fonts Dropdown -->
+            <div class="prop-group" id="ui-font-prop-group">
+              <span class="prop-label">Game Font</span>
+              <select class="prop-select" id="ui-prop-font">
+                <optgroup label="Retro & Pixel">
+                  <option value="'Press Start 2P', monospace">Pixel (Press Start 2P)</option>
+                  <option value="'VT323', monospace">Arcade (VT323)</option>
+                  <option value="'Silkscreen', cursive">Silkscreen</option>
+                  <option value="'Share Tech Mono', monospace">Terminal (Share Tech)</option>
+                </optgroup>
+                <optgroup label="Sci-Fi & Action">
+                  <option value="'Orbitron', sans-serif">Cyber (Orbitron)</option>
+                  <option value="'Audiowide', cursive">Sci-Fi (Audiowide)</option>
+                  <option value="'Russo One', sans-serif">Russo One</option>
+                  <option value="'Black Ops One', cursive">Military (Black Ops)</option>
+                  <option value="'Wallpoet', cursive">Wallpoet</option>
+                  <option value="'Faster One', cursive">Speed (Faster One)</option>
+                </optgroup>
+                <optgroup label="Cartoon & Bold">
+                  <option value="'Bangers', cursive">Comic Bangers</option>
+                  <option value="'Bungee', cursive">Bungee</option>
+                  <option value="'Luckiest Guy', cursive">Luckiest Guy</option>
+                  <option value="'Fredoka', sans-serif">Fredoka One</option>
+                  <option value="'Anton', sans-serif">Anton Impact</option>
+                  <option value="'Permanent Marker', cursive">Marker</option>
+                </optgroup>
+                <optgroup label="RPG & Themed">
+                  <option value="'MedievalSharp', cursive">Medieval RPG</option>
+                  <option value="'Cinzel', serif">Cinematic (Cinzel)</option>
+                  <option value="'Creepster', cursive">Horror (Creepster)</option>
+                  <option value="'Monoton', cursive">Retro Disco (Monoton)</option>
+                  <option value="'Special Elite', cursive">Typewriter</option>
+                </optgroup>
+                <optgroup label="Standard">
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="'Consolas', monospace">Consolas</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="prop-group" id="ui-image-prop-group" style="display: none;">
+              <span class="prop-label">UI Image</span>
+              <label class="file-upload-btn" for="ui-image-upload-input">Choose Image (.png, .jpg)</label>
+              <input type="file" id="ui-image-upload-input" accept="image/*">
+            </div>
+            <div class="prop-group">
+              <span class="prop-label">Font Size (px)</span>
+              <input type="number" class="prop-input" id="ui-prop-fontsize" min="8" max="120" value="16">
+            </div>
+            <div class="prop-group">
+              <span class="prop-label">Text Color</span>
+              <input type="color" id="ui-prop-textcolor" value="#ffffff">
+            </div>
+            <div class="prop-group">
+              <span class="prop-label">Background Color</span>
+              <input type="color" id="ui-prop-bgcolor" value="#3a3a3a">
+            </div>
+            <div class="prop-group">
+              <span class="prop-label">Border Radius (px)</span>
+              <input type="number" class="prop-input" id="ui-prop-radius" min="0" max="80" value="0">
+            </div>
+            <div class="prop-group" style="margin-top: 4px;">
+              <button class="action-btn" id="btn-ui-center" style="background-color: #2e7d32;">Center on Screen</button>
+              <button class="action-btn" id="btn-ui-delete-element" style="background-color: #c62828; margin-top: 4px;">Delete Element</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create Object Window (Draggable) -->
+      <div class="engine-panel" id="create-panel">
+        <div class="panel-header" id="create-header">
+          <span>Create Object</span>
+          <button class="close-btn" id="btn-close-create">✕</button>
+        </div>
+        <div class="panel-body">
+          <div class="prop-group">
+            <span class="prop-label">Type</span>
+            <select class="prop-select" id="create-type">
+              <option value="cube">Cube</option>
+              <option value="sphere">Sphere</option>
+              <option value="cylinder">Cylinder</option>
+              <option value="plane">Plane</option>
+              <option value="camera">Camera</option>
+              <option value="light-point">Light (Point)</option>
+              <option value="light-dir">Light (Directional)</option>
+            </select>
+          </div>
+          <div class="prop-group">
+            <span class="prop-label">Name</span>
+            <input type="text" class="prop-input" id="create-name">
+          </div>
+          <button class="action-btn" id="btn-add-object" style="margin-top: 6px;">Add to World</button>
+        </div>
+      </div>
+
+      <!-- Assets Manager Window (Draggable) -->
+      <div class="engine-panel" id="assets-panel">
+        <div class="panel-header" id="assets-header">
+          <span>Assets Manager</span>
+          <button class="close-btn" id="btn-close-assets">✕</button>
+        </div>
+        <div class="panel-body">
+          <div style="display: flex; gap: 8px;">
+            <label class="action-btn" for="asset-upload-input" style="flex: 1;">+ Upload Asset (.png, .mp3, .mp4, .obj, .fbx)</label>
+            <input type="file" id="asset-upload-input" accept="image/*,audio/*,video/*,.obj,.fbx">
+          </div>
+          <div class="assets-grid" id="assets-grid"></div>
+          <div id="asset-actions" style="display: none; flex-direction: column; gap: 8px; border-top: 1px solid #333; padding-top: 10px;">
+            <div id="selected-asset-title" style="font-weight: bold; color: #38b6ff;"></div>
+            <button class="action-btn" id="btn-place-in-world" style="display: none;">Place in World</button>
+            <button class="action-btn" id="btn-apply-as-texture" style="display: none;">Apply Texture to Selected</button>
+            <button class="action-btn" id="btn-preview-audio" style="display: none;">Play Preview Audio / Video</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Properties / World Properties Window (Draggable & Collapsible) -->
+      <div class="engine-panel" id="properties-panel">
+        <div class="panel-header" id="properties-header">
+          <span id="properties-title">Properties</span>
+          <button class="close-btn" id="btn-close-properties">✕</button>
+        </div>
+        <div class="panel-body">
+          <!-- World Properties -->
+          <div id="world-content" style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="accordion-section">
+              <div class="accordion-header">
+                <span>Sky & Environment</span>
+                <span class="acc-arrow">▼</span>
+              </div>
+              <div class="accordion-body">
+                <div class="prop-group">
+                  <span class="prop-label">Skybox Color</span>
+                  <div class="color-row">
+                    <input type="color" id="world-sky-color" value="#38b6ff">
+                    <span id="world-sky-hex" style="color: #aaa; font-family: monospace;">#38B6FF</span>
+                  </div>
+                </div>
+                <div class="prop-group">
+                  <span class="prop-label">Sky Texture / HDRI</span>
+                  <label class="file-upload-btn" for="world-hdri-input">Upload Sky Texture</label>
+                  <input type="file" id="world-hdri-input" accept="image/*,.hdr">
+                  <div class="texture-preview-name" id="world-hdri-name">Standard sky color</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="accordion-section">
+              <div class="accordion-header">
+                <span>Lighting</span>
+                <span class="acc-arrow">▼</span>
+              </div>
+              <div class="accordion-body">
+                <div class="prop-group">
+                  <span class="prop-label">Ambient Light</span>
+                  <div class="color-row">
+                    <input type="color" id="world-ambient-color" value="#ffffff">
+                    <div class="slider-row" style="flex: 1;">
+                      <input type="range" id="world-ambient-intensity" min="0" max="2" step="0.05" value="0.7">
+                      <span id="ambient-intensity-val">0.7</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="prop-group">
+                  <span class="prop-label">Directional Sun</span>
+                  <div class="color-row">
+                    <input type="color" id="world-sun-color" value="#ffffff">
+                    <div class="slider-row" style="flex: 1;">
+                      <input type="range" id="world-sun-intensity" min="0" max="3" step="0.1" value="0.85">
+                      <span id="sun-intensity-val">0.85</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Object Properties -->
+          <div id="selection-content" style="display: none; flex-direction: column; gap: 8px;">
+            <!-- Transform Accordion -->
+            <div class="accordion-section">
+              <div class="accordion-header">
+                <span>Transform</span>
+                <span class="acc-arrow">▼</span>
+              </div>
+              <div class="accordion-body">
+                <div class="prop-group">
+                  <span class="prop-label">Name</span>
+                  <input type="text" class="prop-input" id="prop-name">
+                </div>
+                <div class="prop-group">
+                  <span class="prop-label">Position</span>
+                  <div class="pos-inputs">
+                    <div class="axis-field x"><span>X</span><input type="number" step="0.1" id="pos-x"></div>
+                    <div class="axis-field y"><span>Y</span><input type="number" step="0.1" id="pos-y"></div>
+                    <div class="axis-field z"><span>Z</span><input type="number" step="0.1" id="pos-z"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Appearance Accordion -->
+            <div class="accordion-section" id="appearance-accordion">
+              <div class="accordion-header">
+                <span>Appearance</span>
+                <span class="acc-arrow">▼</span>
+              </div>
+              <div class="accordion-body">
+                <div class="prop-group" id="prop-transparency-group">
+                  <span class="prop-label">Transparency (Ghost)</span>
+                  <div class="slider-row">
+                    <input type="range" id="prop-transparency-slider" min="0" max="1" step="0.05" value="0">
+                    <span id="transparency-val" style="width: 28px; text-align: right;">0.0</span>
+                  </div>
+                </div>
+                <div class="prop-group" id="prop-color-group">
+                  <span class="prop-label">Color</span>
+                  <div class="color-row">
+                    <input type="color" id="prop-color-picker" value="#ffffff">
+                    <span id="color-hex-val" style="color: #aaa; font-family: monospace;">#FFFFFF</span>
+                  </div>
+                </div>
+                <div class="prop-group" id="prop-texture-group">
+                  <span class="prop-label">Texture</span>
+                  <label class="file-upload-btn" for="texture-file-input">Upload Image (.png, .jpg)</label>
+                  <input type="file" id="texture-file-input" accept="image/png, image/jpeg">
+                  <div class="texture-preview-name" id="texture-file-name">No texture applied</div>
+                  <button class="remove-texture-btn" id="btn-remove-texture" style="display: none;">Remove Texture</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Physics Accordion with Gravity, Bounce, Air Resistance, Friction -->
+            <div class="accordion-section" id="physics-accordion">
+              <div class="accordion-header">
+                <span>Physics & Dynamics</span>
+                <span class="acc-arrow">▼</span>
+              </div>
+              <div class="accordion-body">
+                <label class="checkbox-row">
+                  <input type="checkbox" id="prop-has-physics">
+                  <span style="font-weight: bold; font-size: 11px;">Enable Physics (Dynamic)</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" id="prop-can-collide" checked>
+                  <span style="font-weight: bold; font-size: 11px;">Solid Collisions (Collide)</span>
+                </label>
+                <div class="prop-group">
+                  <span class="prop-label">Gravity (Downward Acceleration)</span>
+                  <input type="number" class="prop-input" id="prop-gravity" value="25" step="1">
+                </div>
+                <div class="prop-group">
+                  <span class="prop-label">Bounce Factor (0 = none, 2 = 2x VelY)</span>
+                  <input type="number" class="prop-input" id="prop-bounce" value="0.2" step="0.1" min="0">
+                </div>
+                <div class="prop-group">
+                  <span class="prop-label">Air Resistance Factor (divide airborne Vel)</span>
+                  <input type="number" class="prop-input" id="prop-air-resistance" value="1" step="0.1" min="1">
+                </div>
+                <div class="prop-group">
+                  <span class="prop-label">Friction (Ground damping factor)</span>
+                  <input type="number" class="prop-input" id="prop-friction" value="1.2" step="0.1" min="1">
+                </div>
+              </div>
+            </div>
+
+            <!-- Scripting Accordion -->
+            <div class="accordion-section">
+              <div class="accordion-header">
+                <span>Scripting & Logic</span>
+                <span class="acc-arrow">▼</span>
+              </div>
+              <div class="accordion-body">
+                <div class="prop-group">
+                  <span class="prop-label">Attached Script</span>
+                  <select class="prop-select" id="applied-script-select">
+                    <option value="">(None)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ==========================================
+    // --- DRAGGABLE PANELS & ACCORDIONS UTILS ---
+    // ==========================================
+    function makePanelDraggable(panel, header) {
+      let isDragging = false;
+      let startX, startY, initLeft, initTop;
+
+      header.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.classList.contains('close-btn')) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = panel.getBoundingClientRect();
+        initLeft = rect.left;
+        initTop = rect.top;
+        panel.style.right = 'auto';
+        panel.style.left = initLeft + 'px';
+        panel.style.top = initTop + 'px';
+        panel.style.zIndex = '30';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        let dx = e.clientX - startX;
+        let dy = e.clientY - startY;
+        let newX = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, initLeft + dx));
+        let newY = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, initTop + dy));
+        panel.style.left = newX + 'px';
+        panel.style.top = newY + 'px';
+      });
+
+      window.addEventListener('mouseup', () => { isDragging = false; });
+    }
+
+    makePanelDraggable(document.getElementById('properties-panel'), document.getElementById('properties-header'));
+    makePanelDraggable(document.getElementById('create-panel'), document.getElementById('create-header'));
+    makePanelDraggable(document.getElementById('assets-panel'), document.getElementById('assets-header'));
+    makePanelDraggable(document.getElementById('ui-properties-panel'), document.getElementById('ui-properties-header'));
+
+    // Accordion expand/collapse
+    document.querySelectorAll('.accordion-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const sec = header.closest('.accordion-section');
+        sec.classList.toggle('collapsed');
+      });
+    });
+
+    // ==========================================
+    // --- SCENES & LEVEL ARCHITECTURE ---
+    // ==========================================
+    let scenesData = {
+      "Scene 1": {
+        objects: [],
+        skyColor: '#38b6ff',
+        skyHdri: null,
+        ambientColor: '#ffffff',
+        ambientIntensity: 0.7,
+        sunColor: '#ffffff',
+        sunIntensity: 0.85
+      }
+    };
+    let currentSceneName = "Scene 1";
+
+    const sceneSelector = document.getElementById('scene-selector');
+    const btnAddScene = document.getElementById('btn-add-scene');
+    const btnDeleteScene = document.getElementById('btn-delete-scene');
+
+    function updateSceneSelectorUI() {
+      sceneSelector.innerHTML = '';
+      Object.keys(scenesData).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        sceneSelector.appendChild(opt);
+      });
+      sceneSelector.value = currentSceneName;
+    }
+
+    btnAddScene.addEventListener('click', () => {
+      const num = Object.keys(scenesData).length + 1;
+      const name = prompt("Enter Scene / Level Name:", `Scene ${num}`);
+      if (!name) return;
+      const clean = name.trim();
+      if (!scenesData[clean]) {
+        saveCurrentSceneState();
+        scenesData[clean] = {
+          objects: [],
+          skyColor: '#38b6ff',
+          skyHdri: null,
+          ambientColor: '#ffffff',
+          ambientIntensity: 0.7,
+          sunColor: '#ffffff',
+          sunIntensity: 0.85
+        };
+        switchScene(clean);
+      }
+    });
+
+    btnDeleteScene.addEventListener('click', () => {
+      const sceneNames = Object.keys(scenesData);
+      if (sceneNames.length <= 1) {
+        alert("You cannot delete the only scene!");
+        return;
+      }
+      if (confirm(`Are you sure you want to delete scene "${currentSceneName}"?`)) {
+        delete scenesData[currentSceneName];
+        const nextScene = Object.keys(scenesData)[0];
+        switchScene(nextScene);
+      }
+    });
+
+    sceneSelector.addEventListener('change', () => {
+      saveCurrentSceneState();
+      switchScene(sceneSelector.value);
+    });
+
+    // --- 3D Scene Setup ---
+    const container = document.getElementById('viewport-container');
+    const canvas = document.getElementById('viewport-canvas');
+    const gameUiCanvas = document.getElementById('game-ui-canvas');
+    const viewportOverlayControls = document.getElementById('viewport-overlay-controls');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x38b6ff);
+
+    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1500);
+    let yaw = 0, pitch = -0.25;
+    camera.rotation.order = 'YXZ';
+    camera.position.set(0, 5, 12);
+    camera.rotation.set(pitch, yaw, 0);
+
+    let activeRenderCamera = camera;
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    sunLight.position.set(25, 45, 20);
+    sunLight.castShadow = true;
+    scene.add(sunLight);
+
+    // Infinite Grid
+    const gridHelper = new THREE.GridHelper(1000, 500, 0x888888, 0x777777);
+    scene.add(gridHelper);
+
+    const selectionBox = new THREE.BoxHelper(new THREE.Mesh(), 0x00ffff);
+    selectionBox.visible = false;
+    scene.add(selectionBox);
+
+    let sceneObjects = [];
+    let selectedObject = null;
+
+    // --- Undo & Clipboard (Ctrl+Z, Ctrl+C, Ctrl+V) ---
+    let undoStack = [];
+    let clipboardObjectData = null;
+
+    function pushUndoState() {
+      if (isPlaying) return;
+      const snapshot = sceneObjects.map(serializeObjectData);
+      undoStack.push(JSON.stringify(snapshot));
+      if (undoStack.length > 25) undoStack.shift();
+    }
+
+    function applyUndo() {
+      if (isPlaying || undoStack.length === 0) return;
+      const last = undoStack.pop();
+      try {
+        const objectsData = JSON.parse(last);
+        deselectObject();
+        sceneObjects.forEach(o => {
+          if (o.userData.helper) scene.remove(o.userData.helper);
+          scene.remove(o);
+        });
+        sceneObjects = [];
+        objectsData.forEach(d => deserializeObject(d));
+      } catch (e) {
+        console.error("Undo error", e);
+      }
+    }
+
+    // --- Transform Controls ---
+    const transformControl = new THREE.TransformControls(camera, renderer.domElement);
+    scene.add(transformControl);
+
+    function fixRedArrowCone() {
+      transformControl.traverse((child) => {
+        if (child.isMesh && child.geometry && child.geometry.type === 'CylinderGeometry') {
+          const color = child.material && child.material.color;
+          if (color && color.r > 0.8 && color.g < 0.2 && color.b < 0.2) {
+            child.geometry = child.geometry.clone();
+            child.geometry.rotateZ(Math.PI);
+          }
+        }
+      });
+    }
+    fixRedArrowCone();
+
+    const snapSelect = document.getElementById('snap-select');
+    snapSelect.addEventListener('change', () => {
+      const snapVal = parseFloat(snapSelect.value);
+      transformControl.setTranslationSnap(snapVal > 0 ? snapVal : null);
+    });
+
+    let isTransforming = false;
+    transformControl.addEventListener('dragging-changed', (e) => {
+      isTransforming = e.value;
+      if (e.value) pushUndoState();
+    });
+    transformControl.addEventListener('objectChange', () => {
+      updatePositionUI();
+      if (selectedObject && selectedObject.userData.cameraInstance) {
+        selectedObject.userData.cameraInstance.position.copy(selectedObject.position);
+        selectedObject.userData.cameraInstance.quaternion.copy(selectedObject.quaternion);
+      }
+      if (selectionBox.visible && selectedObject) selectionBox.update();
+    });
+
+    function spawnInitialCube() {
+      const geo = new THREE.BoxGeometry(3, 3, 3);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.1 });
+      const cube = new THREE.Mesh(geo, mat);
+      cube.position.set(0, 1.5, 0);
+      cube.userData = {
+        name: 'cube1',
+        type: 'cube',
+        textureData: null,
+        textureName: '',
+        appliedScript: '',
+        collide: true,
+        hasPhysics: false,
+        transparency: 0,
+        gravity: 25,
+        bounceFactor: 0.2,
+        airResistance: 1.0,
+        friction: 1.2
+      };
+      scene.add(cube);
+      sceneObjects.push(cube);
+      return cube;
+    }
+    spawnInitialCube();
+    updateSceneSelectorUI();
+
+    function serializeObjectData(obj) {
+      return {
+        name: obj.userData.name || 'obj',
+        type: obj.userData.type || 'cube',
+        pos: [obj.position.x, obj.position.y, obj.position.z],
+        rot: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+        scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+        color: obj.material && obj.material.color ? '#' + obj.material.color.getHexString() : '#ffffff',
+        textureData: obj.userData.textureData || null,
+        textureName: obj.userData.textureName || '',
+        appliedScript: obj.userData.appliedScript || '',
+        collide: obj.userData.collide !== false,
+        hasPhysics: Boolean(obj.userData.hasPhysics),
+        transparency: obj.userData.transparency || 0,
+        gravity: obj.userData.gravity !== undefined ? obj.userData.gravity : 25,
+        bounceFactor: obj.userData.bounceFactor !== undefined ? obj.userData.bounceFactor : 0.2,
+        airResistance: obj.userData.airResistance !== undefined ? obj.userData.airResistance : 1.0,
+        friction: obj.userData.friction !== undefined ? obj.userData.friction : 1.2,
+        modelFormat: obj.userData.modelFormat || null,
+        modelDataUrl: obj.userData.modelDataUrl || null
+      };
+    }
+
+    function deserializeObject(data) {
+      let mesh;
+      const type = data.type;
+      if (type === 'camera') {
+        mesh = createCameraVisual(data.name);
+      } else if (type.startsWith('light')) {
+        mesh = createLightObject(type, data.name);
+      } else if (type === 'model' && data.modelDataUrl) {
+        mesh = buildModelFromBase64(data.modelDataUrl, data.modelFormat, data.name);
+      } else {
+        let geo;
+        if (type === 'cube') geo = new THREE.BoxGeometry(3, 3, 3);
+        else if (type === 'sphere') geo = new THREE.SphereGeometry(1.8, 24, 24);
+        else if (type === 'cylinder') geo = new THREE.CylinderGeometry(1.5, 1.5, 3, 24);
+        else if (type === 'plane') { geo = new THREE.PlaneGeometry(3, 3); geo.rotateX(-Math.PI / 2); }
+        else geo = new THREE.BoxGeometry(3, 3, 3);
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(data.color || 0xffffff),
+          roughness: 0.4,
+          metalness: 0.1
+        });
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
+
+      mesh.position.set(data.pos[0], data.pos[1], data.pos[2]);
+      mesh.rotation.set(data.rot[0], data.rot[1], data.rot[2]);
+      mesh.scale.set(data.scale[0], data.scale[1], data.scale[2]);
+
+      mesh.userData = {
+        name: data.name,
+        type: type,
+        textureData: data.textureData,
+        textureName: data.textureName,
+        appliedScript: data.appliedScript,
+        collide: data.collide !== false,
+        hasPhysics: Boolean(data.hasPhysics),
+        transparency: data.transparency || 0,
+        gravity: data.gravity !== undefined ? data.gravity : 25,
+        bounceFactor: data.bounceFactor !== undefined ? data.bounceFactor : 0.2,
+        airResistance: data.airResistance !== undefined ? data.airResistance : 1.0,
+        friction: data.friction !== undefined ? data.friction : 1.2,
+        modelFormat: data.modelFormat,
+        modelDataUrl: data.modelDataUrl
+      };
+
+      if (data.textureData) {
+        applyTextureToObject(mesh, data.textureData, data.textureName);
+      }
+
+      if (data.transparency > 0 && mesh.material) {
+        mesh.material.transparent = true;
+        mesh.material.opacity = 1 - data.transparency * 0.85;
+      }
+
+      scene.add(mesh);
+      sceneObjects.push(mesh);
+      return mesh;
+    }
+
+    function saveCurrentSceneState() {
+      scenesData[currentSceneName] = {
+        objects: sceneObjects.map(serializeObjectData),
+        skyColor: '#' + scene.background.getHexString(),
+        ambientColor: '#' + ambientLight.color.getHexString(),
+        ambientIntensity: ambientLight.intensity,
+        sunColor: '#' + sunLight.color.getHexString(),
+        sunIntensity: sunLight.intensity
+      };
+    }
+
+    function switchScene(name) {
+      if (!scenesData[name]) return;
+      deselectObject();
+      sceneObjects.forEach(o => {
+        if (o.userData.helper) scene.remove(o.userData.helper);
+        scene.remove(o);
+      });
+      sceneObjects = [];
+
+      currentSceneName = name;
+      updateSceneSelectorUI();
+
+      const sc = scenesData[name];
+      scene.background = new THREE.Color(sc.skyColor);
+      ambientLight.color.set(sc.ambientColor);
+      ambientLight.intensity = sc.ambientIntensity;
+      sunLight.color.set(sc.sunColor);
+      sunLight.intensity = sc.sunIntensity;
+
+      if (sc.objects && sc.objects.length > 0) {
+        sc.objects.forEach(d => deserializeObject(d));
+      } else {
+        spawnInitialCube();
+      }
+    }
+
+    // Keyboard Shortcuts: Ctrl+Z, Ctrl+C, Ctrl+V, Delete
+    window.addEventListener('keydown', (e) => {
+      const tag = document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      if (isCtrl && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        applyUndo();
+        return;
+      }
+      if (isCtrl && e.key.toLowerCase() === 'c') {
+        if (selectedObject && !isPlaying) {
+          e.preventDefault();
+          clipboardObjectData = serializeObjectData(selectedObject);
+        }
+        return;
+      }
+      if (isCtrl && e.key.toLowerCase() === 'v') {
+        if (clipboardObjectData && !isPlaying) {
+          e.preventDefault();
+          pushUndoState();
+          const cloneData = JSON.parse(JSON.stringify(clipboardObjectData));
+          cloneData.name = cloneData.name + '_copy';
+          cloneData.pos[0] += 2;
+          cloneData.pos[2] += 2;
+          const newObj = deserializeObject(cloneData);
+          selectObject(newObj);
+        }
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedObject && !isPlaying) {
+          e.preventDefault();
+          pushUndoState();
+          deleteSelectedObject();
+        }
+      }
+    });
+
+    // Mode Buttons
+    const btnMove = document.getElementById('btn-move');
+    const btnSize = document.getElementById('btn-size');
+    const btnRotate = document.getElementById('btn-rotate');
+
+    function setActiveMode(mode, activeBtn) {
+      transformControl.setMode(mode);
+      [btnMove, btnSize, btnRotate].forEach(b => b.classList.remove('active'));
+      activeBtn.classList.add('active');
+    }
+    btnMove.addEventListener('click', () => setActiveMode('translate', btnMove));
+    btnSize.addEventListener('click', () => setActiveMode('scale', btnSize));
+    btnRotate.addEventListener('click', () => setActiveMode('rotate', btnRotate));
+
+    function selectObject(obj) {
+      if (isPlaying) return;
+      selectedObject = obj;
+      transformControl.attach(obj);
+      selectionBox.setFromObject(obj);
+      selectionBox.visible = true;
+      syncPropertiesPanel();
+    }
+
+    function deselectObject() {
+      selectedObject = null;
+      transformControl.detach();
+      selectionBox.visible = false;
+      syncPropertiesPanel();
+    }
+
+    function deleteSelectedObject() {
+      if (!selectedObject || isPlaying) return;
+      if (selectedObject.userData.helper) scene.remove(selectedObject.userData.helper);
+      scene.remove(selectedObject);
+      const index = sceneObjects.indexOf(selectedObject);
+      if (index !== -1) sceneObjects.splice(index, 1);
+      deselectObject();
+    }
+
+    // ==========================================
+    // --- ASSETS MANAGER (BASE64 MP4, 3D MODELS) ---
+    // ==========================================
+    const btnAssets = document.getElementById('btn-assets');
+    const assetsPanel = document.getElementById('assets-panel');
+    const btnCloseAssets = document.getElementById('btn-close-assets');
+    const assetUploadInput = document.getElementById('asset-upload-input');
+    const assetsGrid = document.getElementById('assets-grid');
+
+    const assetActions = document.getElementById('asset-actions');
+    const selectedAssetTitle = document.getElementById('selected-asset-title');
+    const btnPlaceInWorld = document.getElementById('btn-place-in-world');
+    const btnApplyAsTexture = document.getElementById('btn-apply-as-texture');
+    const btnPreviewAudio = document.getElementById('btn-preview-audio');
+
+    let assetLibrary = [];
+    let activeSelectedAsset = null;
+    let previewAudioInstance = null;
+
+    btnAssets.addEventListener('click', () => {
+      const open = assetsPanel.style.display === 'flex';
+      assetsPanel.style.display = open ? 'none' : 'flex';
+      btnAssets.classList.toggle('active', !open);
+      renderAssetsGrid();
+    });
+    btnCloseAssets.addEventListener('click', () => {
+      assetsPanel.style.display = 'none';
+      btnAssets.classList.remove('active');
+    });
+
+    function registerAsset(name, type, dataUrl, format = null) {
+      const existing = assetLibrary.find(a => a.name === name);
+      if (!existing) {
+        assetLibrary.push({ id: 'asset_' + Date.now(), name, type, dataUrl, format });
+      } else {
+        existing.dataUrl = dataUrl;
+        existing.format = format;
+      }
+      renderAssetsGrid();
+    }
+
+    assetUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      let type = 'image';
+      if (['mp3', 'wav', 'ogg'].includes(ext)) type = 'audio';
+      else if (['mp4', 'webm'].includes(ext)) type = 'video';
+      else if (['obj', 'fbx'].includes(ext)) type = 'model';
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        registerAsset(file.name, type, evt.target.result, ext);
+      };
+      reader.readAsDataURL(file);
+      assetUploadInput.value = '';
+    });
+
+    function renderAssetsGrid() {
+      assetsGrid.innerHTML = '';
+      if (assetLibrary.length === 0) {
+        assetsGrid.innerHTML = '<div style="color: #777; font-style: italic; padding: 10px;">No assets uploaded yet.</div>';
+        assetActions.style.display = 'none';
+        return;
+      }
+
+      assetLibrary.forEach(asset => {
+        const div = document.createElement('div');
+        div.className = 'asset-item' + (activeSelectedAsset === asset ? ' selected' : '');
+        let icon = '📁';
+        if (asset.type === 'image') icon = '🖼️';
+        else if (asset.type === 'audio') icon = '🎵';
+        else if (asset.type === 'video') icon = '🎬';
+        else if (asset.type === 'model') icon = '🗿';
+
+        div.innerHTML = `<div class="asset-icon">${icon}</div><div class="asset-name">${asset.name}</div>`;
+        div.addEventListener('click', () => selectAsset(asset));
+        assetsGrid.appendChild(div);
+      });
+    }
+
+    function selectAsset(asset) {
+      activeSelectedAsset = asset;
+      renderAssetsGrid();
+      assetActions.style.display = 'flex';
+      selectedAssetTitle.textContent = `${asset.name} (${asset.type.toUpperCase()})`;
+      btnPlaceInWorld.style.display = asset.type === 'model' ? 'block' : 'none';
+      btnApplyAsTexture.style.display = asset.type === 'image' ? 'block' : 'none';
+      btnPreviewAudio.style.display = (asset.type === 'audio' || asset.type === 'video') ? 'block' : 'none';
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = window.atob(base64.split(',')[1]);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    function base64ToText(base64) {
+      const binaryString = window.atob(base64.split(',')[1]);
+      return decodeURIComponent(escape(binaryString));
+    }
+
+    function buildModelFromBase64(dataUrl, format, name) {
+      let object = new THREE.Group();
+      if (format === 'obj') {
+        const text = base64ToText(dataUrl);
+        const loader = new THREE.OBJLoader();
+        object = loader.parse(text);
+      } else if (format === 'fbx') {
+        const buffer = base64ToArrayBuffer(dataUrl);
+        const loader = new THREE.FBXLoader();
+        object = loader.parse(buffer, '');
+      }
+
+      object.traverse(c => {
+        if (c.isMesh) {
+          c.castShadow = true;
+          c.receiveShadow = true;
+          if (c.material) {
+            if (Array.isArray(c.material)) c.material.forEach(m => { m.side = THREE.DoubleSide; });
+            else c.material.side = THREE.DoubleSide;
+          }
+        }
+      });
+
+      object.userData = {
+        name: name,
+        type: 'model',
+        collide: true,
+        hasPhysics: false,
+        transparency: 0,
+        gravity: 25,
+        bounceFactor: 0.2,
+        airResistance: 1.0,
+        friction: 1.2,
+        modelFormat: format,
+        modelDataUrl: dataUrl
+      };
+      return object;
+    }
+
+    btnPlaceInWorld.addEventListener('click', () => {
+      if (!activeSelectedAsset || activeSelectedAsset.type !== 'model') return;
+      pushUndoState();
+      const objName = activeSelectedAsset.name.split('.')[0] + '_' + (sceneObjects.length + 1);
+      const model = buildModelFromBase64(activeSelectedAsset.dataUrl, activeSelectedAsset.format, objName);
+
+      const lookDir = new THREE.Vector3();
+      camera.getWorldDirection(lookDir);
+      model.position.copy(camera.position.clone().addScaledVector(lookDir, 8));
+
+      scene.add(model);
+      sceneObjects.push(model);
+      selectObject(model);
+      assetsPanel.style.display = 'none';
+      btnAssets.classList.remove('active');
+    });
+
+    btnApplyAsTexture.addEventListener('click', () => {
+      if (!activeSelectedAsset || !selectedObject) return;
+      pushUndoState();
+      applyTextureToObject(selectedObject, activeSelectedAsset.dataUrl, activeSelectedAsset.name);
+      syncPropertiesPanel();
+    });
+
+    btnPreviewAudio.addEventListener('click', () => {
+      if (!activeSelectedAsset) return;
+      if (activeSelectedAsset.type === 'video') {
+        playVideoFullscreen(activeSelectedAsset.dataUrl);
+      } else if (activeSelectedAsset.type === 'audio') {
+        if (previewAudioInstance) { previewAudioInstance.pause(); previewAudioInstance = null; }
+        previewAudioInstance = new Audio(activeSelectedAsset.dataUrl);
+        previewAudioInstance.play();
+      }
+    });
+
+    // Fullscreen MP4 Video Player
+    const videoOverlay = document.getElementById('fullscreen-video-overlay');
+    const videoPlayer = document.getElementById('fullscreen-video-player');
+
+    function playVideoFullscreen(url) {
+      videoPlayer.src = url;
+      videoOverlay.style.display = 'flex';
+      videoPlayer.currentTime = 0;
+      videoPlayer.play();
+      videoPlayer.onended = () => {
+        videoOverlay.style.display = 'none';
+        videoPlayer.pause();
+        videoPlayer.src = '';
+      };
+    }
+
+    // ==========================================
+    // --- UI EDITOR STUDIO ---
+    // ==========================================
+    const btnUI = document.getElementById('btn-ui');
+    const uiEditorApp = document.getElementById('ui-editor-app');
+    const btnCloseUiEditor = document.getElementById('btn-close-ui-editor');
+    const uiWorkspace = document.getElementById('ui-workspace');
+    const uiAddElementSelect = document.getElementById('ui-add-element-select');
+
+    const btnUiMove = document.getElementById('btn-ui-move');
+    const btnUiSize = document.getElementById('btn-ui-size');
+    const btnUiRotate = document.getElementById('btn-ui-rotate');
+    const btnUiSnap = document.getElementById('btn-ui-snap');
+    const btnUiProperties = document.getElementById('btn-ui-properties');
+    const uiPropertiesPanel = document.getElementById('ui-properties-panel');
+    const btnCloseUiProps = document.getElementById('btn-close-ui-props');
+    const btnOpenUiScripting = document.getElementById('btn-open-ui-scripting');
+
+    const uiPropElementName = document.getElementById('ui-prop-element-name');
+    const uiPropText = document.getElementById('ui-prop-text');
+    const uiPropFont = document.getElementById('ui-prop-font');
+    const uiPropFontSize = document.getElementById('ui-prop-fontsize');
+    const uiPropTextColor = document.getElementById('ui-prop-textcolor');
+    const uiPropBgColor = document.getElementById('ui-prop-bgcolor');
+    const uiPropRadius = document.getElementById('ui-prop-radius');
+    const uiImagePropGroup = document.getElementById('ui-image-prop-group');
+    const uiImageUploadInput = document.getElementById('ui-image-upload-input');
+    const btnUiCenter = document.getElementById('btn-ui-center');
+    const btnUiDeleteElement = document.getElementById('btn-ui-delete-element');
+
+    let uiElements = [];
+    let selectedUiElement = null;
+    let uiToolMode = 'move';
+    let uiSnappingEnabled = true;
+    let isUiDragging = false;
+    let uiDragOffset = { x: 0, y: 0 };
+    let uiElementCounters = { box: 1, text: 1, textbox: 1, title: 1, image: 1 };
+
+    btnUI.addEventListener('click', () => {
+      const open = uiEditorApp.style.display === 'flex';
+      if (!open) {
+        uiEditorApp.style.display = 'flex';
+        btnUI.classList.add('active');
+        viewportOverlayControls.style.display = 'none';
+        uiWorkspace.appendChild(gameUiCanvas);
+        gameUiCanvas.style.display = 'block';
+      } else {
+        closeUiEditor();
+      }
+    });
+
+    function closeUiEditor() {
+      uiEditorApp.style.display = 'none';
+      btnUI.classList.remove('active');
+      uiPropertiesPanel.style.display = 'none';
+      viewportOverlayControls.style.display = 'flex';
+      container.appendChild(gameUiCanvas);
+      gameUiCanvas.style.display = 'none';
+      if (selectedUiElement) selectedUiElement.classList.remove('selected');
+      selectedUiElement = null;
+    }
+    btnCloseUiEditor.addEventListener('click', closeUiEditor);
+
+    btnUiSnap.addEventListener('click', () => {
+      uiSnappingEnabled = !uiSnappingEnabled;
+      btnUiSnap.textContent = uiSnappingEnabled ? "Snap: ON" : "Snap: OFF";
+      btnUiSnap.classList.toggle('secondary', !uiSnappingEnabled);
+    });
+
+    btnUiMove.addEventListener('click', () => setUiToolMode('move', btnUiMove));
+    btnUiSize.addEventListener('click', () => setUiToolMode('size', btnUiSize));
+    btnUiRotate.addEventListener('click', () => setUiToolMode('rotate', btnUiRotate));
+
+    function setUiToolMode(mode, btn) {
+      uiToolMode = mode;
+      [btnUiMove, btnUiSize, btnUiRotate].forEach(b => {
+        b.classList.remove('active');
+        b.classList.add('secondary');
+      });
+      btn.classList.add('active');
+      btn.classList.remove('secondary');
+    }
+
+    btnUiProperties.addEventListener('click', () => {
+      const open = uiPropertiesPanel.style.display === 'flex';
+      uiPropertiesPanel.style.display = open ? 'none' : 'flex';
+    });
+    btnCloseUiProps.addEventListener('click', () => { uiPropertiesPanel.style.display = 'none'; });
+
+    uiAddElementSelect.addEventListener('change', () => {
+      const val = uiAddElementSelect.value;
+      if (!val) return;
+
+      const el = document.createElement(val === 'image' ? 'img' : 'div');
+      el.className = 'ui-element';
+      el.style.left = '120px';
+      el.style.top = '120px';
+      el.dataset.rotation = "0";
+
+      let baseName = val.replace('smooth-', '');
+      let autoName = baseName + (uiElementCounters[baseName] || 1);
+      uiElementCounters[baseName] = (uiElementCounters[baseName] || 1) + 1;
+      el.dataset.name = autoName;
+
+      if (val === 'box') {
+        el.className += ' ui-box';
+        el.style.width = '140px'; el.style.height = '90px';
+      } else if (val === 'smooth-box') {
+        el.className += ' ui-box smooth';
+        el.style.width = '140px'; el.style.height = '90px';
+      } else if (val === 'text') {
+        el.className += ' ui-text';
+        el.textContent = 'Game Text';
+      } else if (val === 'textbox') {
+        el.className += ' ui-textbox';
+        el.textContent = 'Input Field';
+      } else if (val === 'smooth-textbox') {
+        el.className += ' ui-textbox smooth';
+        el.textContent = 'Smooth Field';
+      } else if (val === 'title') {
+        el.className += ' ui-title';
+        el.textContent = 'Level 1';
+      } else if (val === 'image') {
+        el.className += ' ui-image';
+        el.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%2338b6ff"/%3E%3Ctext x="50" y="55" font-family="Arial" font-size="14" fill="%23fff" text-anchor="middle"%3EUI Image%3C/text%3E%3C/svg%3E';
+        el.style.width = '100px'; el.style.height = '100px';
+      }
+
+      gameUiCanvas.appendChild(el);
+      uiElements.push(el);
+      selectUiElement(el);
+      uiAddElementSelect.value = '';
+    });
+
+    function selectUiElement(el) {
+      if (selectedUiElement) selectedUiElement.classList.remove('selected');
+      selectedUiElement = el;
+      if (el) {
+        el.classList.add('selected');
+        syncUiPropertiesPanel();
+      }
+    }
+
+    function syncUiPropertiesPanel() {
+      if (!selectedUiElement) return;
+      uiPropElementName.value = selectedUiElement.dataset.name || '';
+      uiPropText.value = selectedUiElement.textContent || '';
+      uiPropFont.value = selectedUiElement.style.fontFamily || "'Press Start 2P', monospace";
+      uiPropFontSize.value = parseInt(window.getComputedStyle(selectedUiElement).fontSize) || 16;
+      uiPropRadius.value = parseInt(selectedUiElement.style.borderRadius) || 0;
+      uiImagePropGroup.style.display = selectedUiElement.tagName === 'IMG' ? 'flex' : 'none';
+    }
+
+    uiPropElementName.addEventListener('input', () => {
+      if (selectedUiElement) selectedUiElement.dataset.name = uiPropElementName.value.trim();
+    });
+    uiPropText.addEventListener('input', () => {
+      if (selectedUiElement && selectedUiElement.tagName !== 'IMG') selectedUiElement.textContent = uiPropText.value;
+    });
+    uiPropFont.addEventListener('change', () => {
+      if (selectedUiElement) selectedUiElement.style.fontFamily = uiPropFont.value;
+    });
+    uiPropFontSize.addEventListener('input', () => {
+      if (selectedUiElement) selectedUiElement.style.fontSize = uiPropFontSize.value + 'px';
+    });
+    uiPropTextColor.addEventListener('input', (e) => {
+      if (selectedUiElement) selectedUiElement.style.color = e.target.value;
+    });
+    uiPropBgColor.addEventListener('input', (e) => {
+      if (selectedUiElement) selectedUiElement.style.backgroundColor = e.target.value;
+    });
+    uiPropRadius.addEventListener('input', () => {
+      if (selectedUiElement) selectedUiElement.style.borderRadius = uiPropRadius.value + 'px';
+    });
+
+    uiImageUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file && selectedUiElement && selectedUiElement.tagName === 'IMG') {
+        const reader = new FileReader();
+        reader.onload = (evt) => { selectedUiElement.src = evt.target.result; };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    btnUiCenter.addEventListener('click', () => {
+      if (!selectedUiElement) return;
+      const workspaceRect = uiWorkspace.getBoundingClientRect();
+      const elRect = selectedUiElement.getBoundingClientRect();
+      const cx = (workspaceRect.width - elRect.width) / 2;
+      const cy = (workspaceRect.height - elRect.height) / 2;
+      selectedUiElement.style.left = `${cx}px`;
+      selectedUiElement.style.top = `${cy}px`;
+    });
+
+    btnUiDeleteElement.addEventListener('click', () => {
+      if (!selectedUiElement) return;
+      selectedUiElement.remove();
+      const idx = uiElements.indexOf(selectedUiElement);
+      if (idx !== -1) uiElements.splice(idx, 1);
+      selectedUiElement = null;
+      uiPropertiesPanel.style.display = 'none';
+    });
+
+    // UI Snapping Drag Handler
+    uiWorkspace.addEventListener('mousedown', (e) => {
+      const target = e.target.closest('.ui-element');
+      if (target) {
+        selectUiElement(target);
+        isUiDragging = true;
+        const rect = target.getBoundingClientRect();
+        uiDragOffset.x = e.clientX - rect.left;
+        uiDragOffset.y = e.clientY - rect.top;
+      } else {
+        selectUiElement(null);
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isUiDragging || !selectedUiElement) return;
+      const workspaceRect = uiWorkspace.getBoundingClientRect();
+
+      if (uiToolMode === 'move') {
+        let x = e.clientX - workspaceRect.left - uiDragOffset.x;
+        let y = e.clientY - workspaceRect.top - uiDragOffset.y;
+
+        if (uiSnappingEnabled) {
+          const elRect = selectedUiElement.getBoundingClientRect();
+          const centerX = (workspaceRect.width - elRect.width) / 2;
+          const centerY = (workspaceRect.height - elRect.height) / 2;
+          if (Math.abs(x - centerX) < 16) x = centerX;
+          if (Math.abs(y - centerY) < 16) y = centerY;
+        }
+
+        selectedUiElement.style.left = `${Math.max(0, x)}px`;
+        selectedUiElement.style.top = `${Math.max(0, y)}px`;
+      } else if (uiToolMode === 'size') {
+        const rect = selectedUiElement.getBoundingClientRect();
+        selectedUiElement.style.width = `${Math.max(24, e.clientX - rect.left)}px`;
+        selectedUiElement.style.height = `${Math.max(18, e.clientY - rect.top)}px`;
+      } else if (uiToolMode === 'rotate') {
+        let rot = (parseInt(selectedUiElement.dataset.rotation || 0) + (e.movementX * 2)) % 360;
+        selectedUiElement.dataset.rotation = rot;
+        selectedUiElement.style.transform = `rotate(${rot}deg)`;
+      }
+    });
+    window.addEventListener('mouseup', () => { isUiDragging = false; });
+
+    // ==========================================
+    // --- UNIVERSAL UI SCRIPTING ---
+    // ==========================================
+    const uiScriptApp = document.getElementById('ui-script-app');
+    const btnCloseUiScript = document.getElementById('btn-close-ui-script');
+    const uiScriptTextarea = document.getElementById('ui-script-textarea');
+    const uiHighlightingContent = document.getElementById('ui-highlighting-content');
+    const uiLineNumbers = document.getElementById('ui-line-numbers');
+
+    let universalUiScript = "";
+
+    btnOpenUiScripting.addEventListener('click', () => {
+      uiScriptApp.style.display = 'flex';
+      uiScriptTextarea.value = universalUiScript;
+      updateUiScriptEditor();
+    });
+    btnCloseUiScript.addEventListener('click', () => {
+      universalUiScript = uiScriptTextarea.value;
+      uiScriptApp.style.display = 'none';
+    });
+
+    function updateUiScriptEditor() {
+      universalUiScript = uiScriptTextarea.value;
+      const text = uiScriptTextarea.value;
+      const lines = text.split('\n');
+      let numStr = '';
+      for (let i = 1; i <= lines.length; i++) numStr += i + '.\n';
+      uiLineNumbers.textContent = numStr;
+
+      const hl = lines.map(line => {
+        let escaped = escapeHtml(line);
+        return escaped
+          .replace(/\b(If|then|end)\b/gi, '<span class="token-condition">$1</span>')
+          .replace(/\b(Hide\s+UI|Play\s+sound|Fade\s+out|Fade\s+in|Move|Rotate|Resize|clicked)\b/gi, '<span class="token-keyword">$1</span>')
+          .replace(/(\b\d+(\.\d+)?%?\b)/g, '<span class="token-number">$1</span>');
+      });
+      uiHighlightingContent.innerHTML = hl.join('\n') + (text.endsWith('\n') ? ' ' : '');
+    }
+
+    uiScriptTextarea.addEventListener('input', updateUiScriptEditor);
+    uiScriptTextarea.addEventListener('scroll', () => {
+      document.querySelector('#ui-script-app .script-hl').scrollTop = uiScriptTextarea.scrollTop;
+      uiLineNumbers.scrollTop = uiScriptTextarea.scrollTop;
+    });
+
+    function findUiElement(name) {
+      return uiElements.find(el => (el.dataset.name || '').toLowerCase() === name.toLowerCase());
+    }
+
+    function runUiScripts() {
+      const code = universalUiScript;
+      const lines = code.split('\n').map(l => l.trim()).filter(Boolean);
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        const clickMatch = line.match(/^If\s+([a-zA-Z0-9_-]+)\s+clicked\s+then$/i);
+        if (clickMatch) {
+          const el = findUiElement(clickMatch[1]);
+          if (el) {
+            let block = [];
+            i++;
+            while (i < lines.length && !lines[i].match(/^end$/i)) {
+              block.push(lines[i]);
+              i++;
+            }
+            el.onclick = () => {
+              block.forEach(sub => executeUiAction(sub));
+            };
+          }
+        } else {
+          executeUiAction(line);
+        }
+      }
+    }
+
+    function executeUiAction(line) {
+      if (line.match(/^Hide\s+UI$/i)) {
+        gameUiCanvas.style.display = 'none';
+      }
+      const fadeOut = line.match(/^Fade\s+out(?:\s+([\d.]+))?$/i);
+      if (fadeOut) {
+        const s = parseFloat(fadeOut[1]) || 0.5;
+        gameUiCanvas.style.transition = `opacity ${s}s ease`;
+        gameUiCanvas.style.opacity = '0';
+      }
+      const fadeIn = line.match(/^Fade\s+in(?:\s+([\d.]+))?$/i);
+      if (fadeIn) {
+        const s = parseFloat(fadeIn[1]) || 0.5;
+        gameUiCanvas.style.transition = `opacity ${s}s ease`;
+        gameUiCanvas.style.opacity = '1';
+      }
+      const moveMatch = line.match(/^Move\s+([a-zA-Z0-9_-]+)\s+(-?[\d.]+)\s*,\s*(-?[\d.]+)$/i);
+      if (moveMatch) {
+        const el = findUiElement(moveMatch[1]);
+        if (el) { el.style.left = moveMatch[2] + 'px'; el.style.top = moveMatch[3] + 'px'; }
+      }
+      const rotMatch = line.match(/^Rotate\s+([a-zA-Z0-9_-]+)\s+(-?[\d.]+)$/i);
+      if (rotMatch) {
+        const el = findUiElement(rotMatch[1]);
+        if (el) el.style.transform = `rotate(${rotMatch[2]}deg)`;
+      }
+      const resizeMatch = line.match(/^Resize\s+([a-zA-Z0-9_-]+)\s+([\d.]+)%$/i);
+      if (resizeMatch) {
+        const el = findUiElement(resizeMatch[1]);
+        if (el) {
+          const factor = parseFloat(resizeMatch[2]) / 100;
+          el.style.width = (el.offsetWidth * factor) + 'px';
+          el.style.height = (el.offsetHeight * factor) + 'px';
+        }
+      }
+      const soundMatch = line.match(/^Play\s+sound\s+(.+)$/i);
+      if (soundMatch) {
+        const asset = assetLibrary.find(a => a.type === 'audio' && a.name.toLowerCase().includes(soundMatch[1].trim().toLowerCase()));
+        if (asset) new Audio(asset.dataUrl).play();
+      }
+    }
+
+    // ==========================================
+    // --- PROPERTIES & WORLD PROPERTIES ---
+    // ==========================================
+    const btnProperties = document.getElementById('btn-properties');
+    const propertiesPanel = document.getElementById('properties-panel');
+    const propertiesTitle = document.getElementById('properties-title');
+    const btnCloseProperties = document.getElementById('btn-close-properties');
+
+    const worldContent = document.getElementById('world-content');
+    const worldSkyColor = document.getElementById('world-sky-color');
+    const worldSkyHex = document.getElementById('world-sky-hex');
+    const worldHdriInput = document.getElementById('world-hdri-input');
+    const worldHdriName = document.getElementById('world-hdri-name');
+
+    const worldAmbientColor = document.getElementById('world-ambient-color');
+    const worldAmbientIntensity = document.getElementById('world-ambient-intensity');
+    const ambientIntensityVal = document.getElementById('ambient-intensity-val');
+
+    const worldSunColor = document.getElementById('world-sun-color');
+    const worldSunIntensity = document.getElementById('world-sun-intensity');
+    const sunIntensityVal = document.getElementById('sun-intensity-val');
+
+    const selectionContent = document.getElementById('selection-content');
+    const propNameInput = document.getElementById('prop-name');
+    const posX = document.getElementById('pos-x');
+    const posY = document.getElementById('pos-y');
+    const posZ = document.getElementById('pos-z');
+
+    const propTransparencySlider = document.getElementById('prop-transparency-slider');
+    const transparencyVal = document.getElementById('transparency-val');
+    const propColorGroup = document.getElementById('prop-color-group');
+    const propTextureGroup = document.getElementById('prop-texture-group');
+    const propColorPicker = document.getElementById('prop-color-picker');
+    const colorHexVal = document.getElementById('color-hex-val');
+
+    const propHasPhysics = document.getElementById('prop-has-physics');
+    const propCanCollide = document.getElementById('prop-can-collide');
+    const propGravity = document.getElementById('prop-gravity');
+    const propBounce = document.getElementById('prop-bounce');
+    const propAirResistance = document.getElementById('prop-air-resistance');
+    const propFriction = document.getElementById('prop-friction');
+
+    const textureFileInput = document.getElementById('texture-file-input');
+    const textureFileName = document.getElementById('texture-file-name');
+    const btnRemoveTexture = document.getElementById('btn-remove-texture');
+    const appliedScriptSelect = document.getElementById('applied-script-select');
+
+    let isPropertiesOpen = false;
+
+    function openPropertiesPanel() {
+      isPropertiesOpen = true;
+      propertiesPanel.style.display = 'flex';
+      btnProperties.classList.add('active');
+      syncPropertiesPanel();
+    }
+    function closePropertiesPanel() {
+      isPropertiesOpen = false;
+      propertiesPanel.style.display = 'none';
+      btnProperties.classList.remove('active');
+    }
+
+    btnProperties.addEventListener('click', () => {
+      if (isPropertiesOpen) closePropertiesPanel();
+      else openPropertiesPanel();
+    });
+    btnCloseProperties.addEventListener('click', closePropertiesPanel);
+
+    worldSkyColor.addEventListener('input', (e) => {
+      scene.background = new THREE.Color(e.target.value);
+      worldSkyHex.textContent = e.target.value.toUpperCase();
+      scenesData[currentSceneName].skyColor = e.target.value;
+    });
+
+    worldHdriInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      worldHdriName.textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const img = new Image();
+        img.onload = () => {
+          const tex = new THREE.Texture(img);
+          tex.mapping = THREE.EquirectangularReflectionMapping;
+          tex.needsUpdate = true;
+          scene.background = tex;
+          scene.environment = tex;
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    worldAmbientColor.addEventListener('input', (e) => {
+      ambientLight.color.set(e.target.value);
+      scenesData[currentSceneName].ambientColor = e.target.value;
+    });
+    worldAmbientIntensity.addEventListener('input', (e) => {
+      ambientLight.intensity = parseFloat(e.target.value);
+      ambientIntensityVal.textContent = e.target.value;
+      scenesData[currentSceneName].ambientIntensity = parseFloat(e.target.value);
+    });
+    worldSunColor.addEventListener('input', (e) => {
+      sunLight.color.set(e.target.value);
+      scenesData[currentSceneName].sunColor = e.target.value;
+    });
+    worldSunIntensity.addEventListener('input', (e) => {
+      sunLight.intensity = parseFloat(e.target.value);
+      sunIntensityVal.textContent = e.target.value;
+      scenesData[currentSceneName].sunIntensity = parseFloat(e.target.value);
+    });
+
+    function syncPropertiesPanel() {
+      if (!selectedObject) {
+        propertiesTitle.textContent = 'World Properties';
+        worldContent.style.display = 'flex';
+        selectionContent.style.display = 'none';
+      } else {
+        propertiesTitle.textContent = 'Object Properties';
+        worldContent.style.display = 'none';
+        selectionContent.style.display = 'flex';
+
+        propNameInput.value = selectedObject.userData.name || '';
+        updatePositionUI();
+
+        const t = selectedObject.userData.transparency !== undefined ? selectedObject.userData.transparency : 0;
+        propTransparencySlider.value = t;
+        transparencyVal.textContent = parseFloat(t).toFixed(2);
+
+        // Physics properties sync
+        propHasPhysics.checked = Boolean(selectedObject.userData.hasPhysics);
+        propCanCollide.checked = selectedObject.userData.collide !== false;
+        propGravity.value = selectedObject.userData.gravity !== undefined ? selectedObject.userData.gravity : 25;
+        propBounce.value = selectedObject.userData.bounceFactor !== undefined ? selectedObject.userData.bounceFactor : 0.2;
+        propAirResistance.value = selectedObject.userData.airResistance !== undefined ? selectedObject.userData.airResistance : 1.0;
+        propFriction.value = selectedObject.userData.friction !== undefined ? selectedObject.userData.friction : 1.2;
+
+        if (selectedObject.userData.type === 'camera') {
+          propColorGroup.style.display = 'none';
+          propTextureGroup.style.display = 'none';
+        } else {
+          propTextureGroup.style.display = 'flex';
+          const hasTexture = Boolean(selectedObject.material && selectedObject.material.map);
+          if (hasTexture) {
+            propColorGroup.style.display = 'none';
+            textureFileName.textContent = selectedObject.userData.textureName || 'Texture applied';
+            btnRemoveTexture.style.display = 'block';
+          } else {
+            propColorGroup.style.display = 'flex';
+            if (selectedObject.material && selectedObject.material.color) {
+              const hex = '#' + selectedObject.material.color.getHexString().toUpperCase();
+              propColorPicker.value = hex;
+              colorHexVal.textContent = hex;
+            }
+            textureFileName.textContent = 'No texture applied';
+            btnRemoveTexture.style.display = 'none';
+          }
+        }
+        appliedScriptSelect.value = selectedObject.userData.appliedScript || '';
+      }
+    }
+
+    function updatePositionUI() {
+      if (!selectedObject) return;
+      posX.value = selectedObject.position.x.toFixed(2);
+      posY.value = selectedObject.position.y.toFixed(2);
+      posZ.value = selectedObject.position.z.toFixed(2);
+    }
+
+    propHasPhysics.addEventListener('change', () => {
+      if (selectedObject) selectedObject.userData.hasPhysics = propHasPhysics.checked;
+    });
+    propCanCollide.addEventListener('change', () => {
+      if (selectedObject) selectedObject.userData.collide = propCanCollide.checked;
+    });
+    propGravity.addEventListener('input', () => {
+      if (selectedObject) selectedObject.userData.gravity = parseFloat(propGravity.value) || 25;
+    });
+    propBounce.addEventListener('input', () => {
+      if (selectedObject) selectedObject.userData.bounceFactor = parseFloat(propBounce.value) || 0;
+    });
+    propAirResistance.addEventListener('input', () => {
+      if (selectedObject) selectedObject.userData.airResistance = parseFloat(propAirResistance.value) || 1;
+    });
+    propFriction.addEventListener('input', () => {
+      if (selectedObject) selectedObject.userData.friction = parseFloat(propFriction.value) || 1;
+    });
+
+    propTransparencySlider.addEventListener('input', (e) => {
+      if (!selectedObject) return;
+      const val = parseFloat(e.target.value);
+      selectedObject.userData.transparency = val;
+      transparencyVal.textContent = val.toFixed(2);
+      selectedObject.traverse(c => {
+        if (c.material) {
+          c.material.transparent = true;
+          c.material.opacity = 1.0 - (val * 0.85);
+          c.material.needsUpdate = true;
+        }
+      });
+    });
+
+    propNameInput.addEventListener('input', () => {
+      if (selectedObject) selectedObject.userData.name = propNameInput.value.trim();
+    });
+
+    [posX, posY, posZ].forEach((input, idx) => {
+      input.addEventListener('input', () => {
+        if (!selectedObject) return;
+        const val = parseFloat(input.value) || 0;
+        if (idx === 0) selectedObject.position.x = val;
+        if (idx === 1) selectedObject.position.y = val;
+        if (idx === 2) selectedObject.position.z = val;
+        if (selectedObject.userData.cameraInstance) {
+          selectedObject.userData.cameraInstance.position.copy(selectedObject.position);
+        }
+        if (selectionBox.visible) selectionBox.update();
+      });
+    });
+
+    propColorPicker.addEventListener('input', (e) => {
+      if (selectedObject && selectedObject.material && !selectedObject.material.map) {
+        selectedObject.material.color.set(e.target.value);
+        colorHexVal.textContent = e.target.value.toUpperCase();
+      }
+    });
+
+    function applyTextureToObject(obj, dataUrl, name) {
+      obj.userData.textureName = name;
+      obj.userData.textureData = dataUrl;
+      const img = new Image();
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        tex.needsUpdate = true;
+        if (obj.material) {
+          obj.material.map = tex;
+          obj.material.color.set(0xffffff);
+          obj.material.needsUpdate = true;
+        }
+        registerAsset(name, 'image', dataUrl);
+      };
+      img.src = dataUrl;
+    }
+
+    textureFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file && selectedObject) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          applyTextureToObject(selectedObject, evt.target.result, file.name);
+          syncPropertiesPanel();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    btnRemoveTexture.addEventListener('click', () => {
+      if (selectedObject && selectedObject.material) {
+        selectedObject.material.map = null;
+        selectedObject.material.needsUpdate = true;
+        selectedObject.userData.textureData = null;
+        selectedObject.userData.textureName = '';
+        syncPropertiesPanel();
+      }
+    });
+
+    function updateScriptDropdowns() {
+      const scriptNames = Object.keys(scriptsData);
+      appliedScriptSelect.innerHTML = '<option value="">(None)</option>';
+      scriptNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        appliedScriptSelect.appendChild(opt);
+      });
+      if (selectedObject) appliedScriptSelect.value = selectedObject.userData.appliedScript || '';
+
+      ideScriptSelector.innerHTML = '';
+      if (scriptNames.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '(No scripts)';
+        ideScriptSelector.appendChild(opt);
+      } else {
+        scriptNames.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          ideScriptSelector.appendChild(opt);
+        });
+        if (currentScriptId) ideScriptSelector.value = currentScriptId;
+      }
+    }
+    appliedScriptSelect.addEventListener('change', () => {
+      if (selectedObject) selectedObject.userData.appliedScript = appliedScriptSelect.value;
+    });
+
+    // Create Object Helpers
+    function createCameraVisual(name) {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 2.0), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+      group.add(body);
+
+      const frustumGeo = new THREE.BufferGeometry();
+      const d = 5.0, w = 3.2, h = 2.0;
+      const vertices = new Float32Array([
+        0, 0, -1,   -w,  h, -1-d,   0, 0, -1,    w,  h, -1-d,
+        0, 0, -1,    w, -h, -1-d,   0, 0, -1,   -w, -h, -1-d,
+        -w,  h, -1-d,   w,  h, -1-d,    w,  h, -1-d,   w, -h, -1-d,
+         w, -h, -1-d,  -w, -h, -1-d,  -w, -h, -1-d,  -w,  h, -1-d,
+        0, h, -1-d,   0, h + 0.6, -1-d
+      ]);
+      frustumGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      const frustumLines = new THREE.LineSegments(frustumGeo, new THREE.LineBasicMaterial({ color: 0xffaa00 }));
+      group.add(frustumLines);
+
+      const realCam = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+      realCam.rotation.order = 'YXZ';
+      group.add(realCam);
+
+      group.userData = { name, type: 'camera', cameraInstance: realCam, frustumLines, appliedScript: '', collide: false, hasPhysics: false };
+      return group;
+    }
+
+    function createLightObject(type, name) {
+      const group = new THREE.Group();
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
+      group.add(bulb);
+      let light = type === 'light-point' ? new THREE.PointLight(0xffffff, 1.5, 50) : new THREE.DirectionalLight(0xffffff, 1.2);
+      group.add(light);
+      group.userData = { name, type, lightInstance: light, collide: false, hasPhysics: false };
+      return group;
+    }
+
+    // Create Panel
+    const btnCreate = document.getElementById('btn-create');
+    const createPanel = document.getElementById('create-panel');
+    const btnCloseCreate = document.getElementById('btn-close-create');
+    const createTypeSelect = document.getElementById('create-type');
+    const createNameInput = document.getElementById('create-name');
+    const btnAddObject = document.getElementById('btn-add-object');
+
+    function getNextAvailableName(type) {
+      let counter = 1;
+      const base = type.replace('light-', 'light');
+      const existing = new Set(sceneObjects.map(o => (o.userData.name || '').toLowerCase()));
+      while (existing.has((base + counter).toLowerCase())) counter++;
+      return base + counter;
+    }
+
+    function openCreatePanel() {
+      createPanel.style.display = 'flex';
+      btnCreate.classList.add('active');
+      createNameInput.value = getNextAvailableName(createTypeSelect.value);
+    }
+    function closeCreatePanel() {
+      createPanel.style.display = 'none';
+      btnCreate.classList.remove('active');
+    }
+    btnCreate.addEventListener('click', () => {
+      if (createPanel.style.display === 'flex') closeCreatePanel();
+      else openCreatePanel();
+    });
+    btnCloseCreate.addEventListener('click', closeCreatePanel);
+
+    createTypeSelect.addEventListener('change', () => {
+      createNameInput.value = getNextAvailableName(createTypeSelect.value);
+    });
+
+    btnAddObject.addEventListener('click', () => {
+      pushUndoState();
+      const type = createTypeSelect.value;
+      let name = createNameInput.value.trim() || getNextAvailableName(type);
+      let mesh;
+
+      if (type === 'camera') mesh = createCameraVisual(name);
+      else if (type.startsWith('light')) mesh = createLightObject(type, name);
+      else {
+        let geo;
+        if (type === 'cube') geo = new THREE.BoxGeometry(3, 3, 3);
+        else if (type === 'sphere') geo = new THREE.SphereGeometry(1.8, 24, 24);
+        else if (type === 'cylinder') geo = new THREE.CylinderGeometry(1.5, 1.5, 3, 24);
+        else if (type === 'plane') { geo = new THREE.PlaneGeometry(3, 3); geo.rotateX(-Math.PI / 2); }
+
+        mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.1 }));
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData = {
+          name, type, textureData: null, textureName: '', appliedScript: '',
+          collide: true, hasPhysics: false, transparency: 0,
+          gravity: 25, bounceFactor: 0.2, airResistance: 1.0, friction: 1.2
+        };
+      }
+
+      const lookDir = new THREE.Vector3();
+      camera.getWorldDirection(lookDir);
+      mesh.position.copy(camera.position.clone().addScaledVector(lookDir, 6));
+
+      scene.add(mesh);
+      sceneObjects.push(mesh);
+      selectObject(mesh);
+      createNameInput.value = getNextAvailableName(createTypeSelect.value);
+    });
+
+    // Viewport Controls
+    const btnFullscreenViewport = document.getElementById('btn-fullscreen-viewport');
+    const btnToggleCameraView = document.getElementById('btn-toggle-camera-view');
+
+    btnFullscreenViewport.addEventListener('click', () => {
+      if (!document.fullscreenElement) container.requestFullscreen().catch(err => alert(err.message));
+      else document.exitFullscreen();
+    });
+
+    let isLookingThroughCamera = false;
+    btnToggleCameraView.addEventListener('click', () => {
+      if (isPlaying) return;
+      const cameraObjs = sceneObjects.filter(o => o.userData.type === 'camera');
+      if (cameraObjs.length === 0) return alert("No camera in scene! Create one with Create > Camera.");
+      isLookingThroughCamera = !isLookingThroughCamera;
+      if (isLookingThroughCamera) {
+        btnToggleCameraView.classList.add('active');
+        const target = (selectedObject && selectedObject.userData.type === 'camera') ? selectedObject : cameraObjs[0];
+        activeRenderCamera = target.userData.cameraInstance;
+      } else {
+        btnToggleCameraView.classList.remove('active');
+        activeRenderCamera = camera;
+      }
+    });
+
+    // Raycast Selection
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let leftDownX = 0, leftDownY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (isPlaying) return;
+      if (e.button === 0) { leftDownX = e.clientX; leftDownY = e.clientY; }
+    });
+
+    canvas.addEventListener('click', (e) => {
+      if (isPlaying) return;
+      if (e.button !== 0) return;
+      if (Math.hypot(e.clientX - leftDownX, e.clientY - leftDownY) > 5 || isTransforming) return;
+
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, activeRenderCamera);
+      const hits = raycaster.intersectObjects(sceneObjects, true);
+
+      if (hits.length > 0) {
+        let top = hits[0].object;
+        while (top.parent && top.parent !== scene) top = top.parent;
+        selectObject(top);
+      } else if (!transformControl.dragging) {
+        deselectObject();
+      }
+    });
+
+    // Right-Click Look
+    let isRightMouseDown = false, lastMouseX = 0, lastMouseY = 0;
+    window.addEventListener('mousedown', (e) => {
+      if (isPlaying) return;
+      if (e.button === 2) { isRightMouseDown = true; lastMouseX = e.clientX; lastMouseY = e.clientY; }
+    });
+    window.addEventListener('mouseup', (e) => { if (e.button === 2) isRightMouseDown = false; });
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('mousemove', (e) => {
+      if (isPlaying) return;
+      if (isRightMouseDown && activeRenderCamera === camera) {
+        yaw -= (e.clientX - lastMouseX) * 0.003;
+        pitch -= (e.clientY - lastMouseY) * 0.003;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch));
+        camera.rotation.set(pitch, yaw, 0, 'YXZ');
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      if (isPlaying || activeRenderCamera !== camera) return;
+      e.preventDefault();
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      camera.position.addScaledVector(forward, -e.deltaY * 0.035);
+    }, { passive: false });
+
+    // Flight Movement
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+      keys[e.code] = true;
+    });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    function handleMovement() {
+      if (isPlaying || isTransforming || activeRenderCamera !== camera) return;
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+      const speed = (keys['ShiftLeft'] || keys['ShiftRight']) ? 0.75 : 0.25;
+
+      if (keys['KeyW']) camera.position.addScaledVector(forward, speed);
+      if (keys['KeyS']) camera.position.addScaledVector(forward, -speed);
+      if (keys['KeyA']) camera.position.addScaledVector(right, -speed);
+      if (keys['KeyD']) camera.position.addScaledVector(right, speed);
+      if (keys['Space']) camera.position.y += speed;
+    }
+
+    // ==========================================
+    // --- SCRIPTING IDE & TYPE HINTS ---
+    // ==========================================
+    const btnScripting = document.getElementById('btn-scripting');
+    const scriptApp = document.getElementById('script-app');
+    const btnCloseScript = document.getElementById('btn-close-script');
+    const btnRunScript = document.getElementById('btn-run-script');
+    const ideScriptSelector = document.getElementById('ide-script-selector');
+    const btnNewScript = document.getElementById('btn-new-script');
+    const btnDeleteScript = document.getElementById('btn-delete-script');
+
+    const scriptTextarea = document.getElementById('script-textarea');
+    const highlightingContent = document.getElementById('highlighting-content');
+    const lineNumbersGutter = document.getElementById('line-numbers');
+    const scriptStatusbar = document.getElementById('script-statusbar');
+    const statusbarText = document.getElementById('statusbar-text');
+    const engineConsole = document.getElementById('engine-console');
+    const scriptSuggestions = document.getElementById('script-suggestions');
+
+    let scriptsData = {};
+    let currentScriptId = null;
+    scriptTextarea.value = '';
+
+    // Autocomplete / Type Hints Commands Repository
+    const TYPE_HINTS = [
+      { cmd: 'Move', syntax: 'Move <name> <x>, <y>, <z>', desc: 'Teleport object to coordinates' },
+      { cmd: 'Glide', syntax: 'Glide <name> <x>, <y>, <z>', desc: 'Glide smoothly to coordinates' },
+      { cmd: 'Smooth glide', syntax: 'Smooth glide <name> <x>, <y>, <z>', desc: 'Smooth curved glide' },
+      { cmd: 'Resize', syntax: 'Resize <name> <percent>%', desc: 'Scale object by percentage' },
+      { cmd: 'Rotate', syntax: 'Rotate <name> <x>, <y>, <z>', desc: 'Rotate object by degrees' },
+      { cmd: 'Physics', syntax: 'Physics <name>', desc: 'Enable dynamic physics' },
+      { cmd: 'No Physics', syntax: 'No Physics <name>', desc: 'Freeze physics' },
+      { cmd: 'Collide', syntax: 'Collide <name>', desc: 'Turn on collisions' },
+      { cmd: 'NonCollide', syntax: 'NonCollide <name>', desc: 'Turn off collisions (ghost)' },
+      { cmd: 'Camera follow', syntax: 'Camera follow <name>', desc: '3rd-person camera follow' },
+      { cmd: 'Camera first person', syntax: 'Camera first person <name>', desc: 'First person camera' },
+      { cmd: 'Preset controller', syntax: 'Preset controller <name>', desc: 'WASD + Space controller' },
+      { cmd: 'Preset first person', syntax: 'Preset first person <name>', desc: 'WASD + Mouse look controller' },
+      { cmd: 'Preset turn around', syntax: 'Preset turn around <name>', desc: 'Arrow key turn controller' },
+      { cmd: 'Dialog', syntax: 'Dialog <name> "<message>"', desc: 'Display RPG dialog box' },
+      { cmd: 'Bubble', syntax: 'Bubble <name> "<message>"', desc: 'Display comic speech bubble' },
+      { cmd: 'Switch scene to', syntax: 'Switch scene to <SceneName>', desc: 'Load another scene' },
+      { cmd: 'Play video', syntax: 'Play video <assetName>', desc: 'Play MP4 full screen' },
+      { cmd: 'Play sound', syntax: 'Play sound <assetName>', desc: 'Play sound effect' },
+      { cmd: 'Loop sound', syntax: 'Loop sound <assetName>', desc: 'Loop background audio' },
+      { cmd: 'Wait', syntax: 'Wait <seconds>', desc: 'Pause script execution' },
+      { cmd: 'Destroy', syntax: 'Destroy <name>', desc: 'Remove object from scene' },
+      { cmd: 'Hide', syntax: 'Hide <name>', desc: 'Make object invisible' },
+      { cmd: 'Show', syntax: 'Show <name>', desc: 'Make object visible' },
+      { cmd: 'Output message', syntax: 'Output message "<text>"', desc: 'Log message to console' },
+      { cmd: 'If pressed', syntax: 'If <key> pressed then\\n  ...\\nend', desc: 'Keypress conditional' },
+      { cmd: 'Repeat', syntax: 'Repeat <count>\\n  ...\\nend', desc: 'Repeat loop block' }
+    ];
+
+    function openScriptApp() {
+      scriptApp.style.display = 'flex';
+      btnScripting.classList.add('active');
+      updateScriptEditor();
+    }
+    function closeScriptApp() {
+      scriptApp.style.display = 'none';
+      btnScripting.classList.remove('active');
+      scriptSuggestions.style.display = 'none';
+    }
+    btnScripting.addEventListener('click', () => {
+      if (scriptApp.style.display === 'flex') closeScriptApp();
+      else openScriptApp();
+    });
+    btnCloseScript.addEventListener('click', closeScriptApp);
+
+    btnNewScript.addEventListener('click', () => {
+      let base = 'script' + (Object.keys(scriptsData).length + 1);
+      const name = prompt("Enter script name:", base);
+      if (!name) return;
+      const clean = name.trim().replace(/\s+/g, '_');
+      scriptsData[clean] = '';
+      currentScriptId = clean;
+      updateScriptDropdowns();
+      scriptTextarea.value = '';
+      updateScriptEditor();
+    });
+
+    btnDeleteScript.addEventListener('click', () => {
+      if (!currentScriptId || !scriptsData[currentScriptId]) return;
+      if (confirm(`Delete script "${currentScriptId}"?`)) {
+        delete scriptsData[currentScriptId];
+        const rem = Object.keys(scriptsData);
+        currentScriptId = rem.length > 0 ? rem[0] : null;
+        updateScriptDropdowns();
+        scriptTextarea.value = currentScriptId ? scriptsData[currentScriptId] : '';
+        updateScriptEditor();
+      }
+    });
+
+    ideScriptSelector.addEventListener('change', () => {
+      if (currentScriptId) scriptsData[currentScriptId] = scriptTextarea.value;
+      currentScriptId = ideScriptSelector.value;
+      scriptTextarea.value = scriptsData[currentScriptId] || '';
+      updateScriptEditor();
+    });
+
+    function escapeHtml(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+    const rules = [
+      { re: /^Move\s+([a-zA-Z0-9_-]+)\s+(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)$/i },
+      { re: /^Resize\s+([a-zA-Z0-9_-]+)\s+([\d.]+)%$/i },
+      { re: /^Rotate\s+([a-zA-Z0-9_-]+)\s+(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)$/i },
+      { re: /^Glide\s+([a-zA-Z0-9_-]+)\s+(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)$/i },
+      { re: /^Smooth\s+glide\s+([a-zA-Z0-9_-]+)\s+(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)$/i },
+      { re: /^Camera\s+follow\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Camera\s+first\s+person\s+([a-zA-Z0-9_-]+)(?:\s+(-?[\d.]+))?$/i },
+      { re: /^Preset\s+controller\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Preset\s+first\s+person\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Preset\s+turn\s+around\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^([a-zA-Z0-9_-]+)\s+follow\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Switch\s+scene\s+to\s+(.+)$/i },
+      { re: /^Play\s+video\s+(.+)$/i },
+      { re: /^Physics\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^No\s+Physics\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Collide\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^NonCollide\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Dialog\s+([a-zA-Z0-9_-]+)\s+"([^"]*)"$/i },
+      { re: /^Bubble\s+([a-zA-Z0-9_-]+)\s+"([^"]*)"$/i },
+      { re: /^Wait\s+([\d.]+)$/i },
+      { re: /^Play\s+sound\s+(.+)$/i },
+      { re: /^Loop\s+sound\s+(.+)$/i },
+      { re: /^Retexture\s+(?:([a-zA-Z0-9_-]+)\s+)?(.+)$/i },
+      { re: /^([a-zA-Z0-9_-]+)\s+fade\s+to\s+color\s+(#[0-9a-fA-F]{3,6})$/i },
+      { re: /^([a-zA-Z0-9_-]+)\s+fade\s+to\s+brightness\s+(black|white|grey|gray)$/i },
+      { re: /^If\s+touch\s+(.+?)\s+then$/i },
+      { re: /^If\s+([a-zA-Z0-9_-]+)\s+pressed\s+then$/i },
+      { re: /^Repeat\s+(\d+)$/i },
+      { re: /^end$/i },
+      { re: /^Destroy\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Hide\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Show\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^Output\s+message\s+"([^"]*)"$/i },
+      { re: /^Clone\s+([a-zA-Z0-9_-]+)$/i },
+      { re: /^([a-zA-Z_]\w*)\s*=\s*(.+)$/ },
+      { re: /^\/\/.*$/ },
+      { re: /^\s*$/ }
+    ];
+
+    function validateLine(line) {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+      return rules.some(r => r.re.test(trimmed));
+    }
+
+    function updateScriptEditor() {
+      if (currentScriptId) scriptsData[currentScriptId] = scriptTextarea.value;
+      const text = scriptTextarea.value;
+      const lines = text.split('\n');
+
+      let numStr = '';
+      for (let i = 1; i <= lines.length; i++) numStr += i + '.\n';
+      lineNumbersGutter.textContent = numStr;
+
+      let firstErrorLine = -1;
+      let errorDesc = '';
+
+      const highlightedLines = lines.map((line, idx) => {
+        const isValid = validateLine(line);
+        if (!isValid && firstErrorLine === -1 && line.trim() !== '') {
+          firstErrorLine = idx + 1;
+          errorDesc = `Syntax Error at line ${idx + 1}: Unknown command "${line.trim()}"`;
+        }
+        let escaped = escapeHtml(line);
+        if (/^\s*\/\//.test(escaped)) return `<span class="token-comment">${escaped}</span>`;
+
+        escaped = escaped
+          .replace(/(Output\s+message|Dialog|Bubble)\s+([a-zA-Z0-9_-]*\s*)(".*?")/gi, '<span class="token-keyword">$1</span> $2<span class="token-string">$3</span>')
+          .replace(/\b(Move|Resize|Rotate|Glide|Smooth\s+glide|Destroy|Hide|Show|Clone|Camera\s+follow|Camera\s+first\s+person|Preset\s+controller|Preset\s+first\s+person|Preset\s+turn\s+around|Switch\s+scene\s+to|Play\s+video|Physics|No\s+Physics|Collide|NonCollide|Wait|Play\s+sound|Loop\s+sound|Retexture|fade\s+to\s+color|fade\s+to\s+brightness)\b/gi, '<span class="token-keyword">$1</span>')
+          .replace(/\b(If\s+touch|If\b.*?\bpressed|with|and|then|Repeat|end)\b/gi, '<span class="token-condition">$1</span>')
+          .replace(/(\b\d+(\.\d+)?%?\b)/g, '<span class="token-number">$1</span>');
+
+        if (!isValid && line.trim() !== '') return `<span class="token-error">${escaped}</span>`;
+        return escaped;
+      });
+
+      highlightingContent.innerHTML = highlightedLines.join('\n') + (text.endsWith('\n') ? ' ' : '');
+      if (firstErrorLine !== -1) {
+        scriptStatusbar.className = 'script-statusbar has-error';
+        statusbarText.textContent = `⚠ ${errorDesc}`;
+      } else {
+        scriptStatusbar.className = 'script-statusbar';
+        statusbarText.textContent = '✓ No syntax errors';
+      }
+    }
+
+    // Type Hint Suggestions Box Controller
+    scriptTextarea.addEventListener('input', () => {
+      updateScriptEditor();
+      showTypeHints();
+    });
+
+    function showTypeHints() {
+      const pos = scriptTextarea.selectionStart;
+      const textBefore = scriptTextarea.value.substring(0, pos);
+      const curLine = textBefore.split('\n').pop().trim();
+
+      if (!curLine || curLine.startsWith('//')) {
+        scriptSuggestions.style.display = 'none';
+        return;
+      }
+
+      const matches = TYPE_HINTS.filter(h => h.cmd.toLowerCase().startsWith(curLine.toLowerCase()) || h.syntax.toLowerCase().includes(curLine.toLowerCase()));
+      if (matches.length === 0) {
+        scriptSuggestions.style.display = 'none';
+        return;
+      }
+
+      scriptSuggestions.innerHTML = '';
+      matches.slice(0, 6).forEach((m, idx) => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item' + (idx === 0 ? ' active' : '');
+        item.innerHTML = `<span class="suggestion-syntax">${m.syntax}</span><span class="suggestion-desc">${m.desc}</span>`;
+        item.addEventListener('click', () => {
+          insertSuggestion(m.syntax);
+        });
+        scriptSuggestions.appendChild(item);
+      });
+
+      const lineIndex = textBefore.split('\n').length;
+      scriptSuggestions.style.top = `${Math.min(lineIndex * 22 + 10, scriptTextarea.offsetHeight - 180)}px`;
+      scriptSuggestions.style.left = '30px';
+      scriptSuggestions.style.display = 'flex';
+    }
+
+    function insertSuggestion(template) {
+      const pos = scriptTextarea.selectionStart;
+      const text = scriptTextarea.value;
+      const lastLineStart = text.lastIndexOf('\n', pos - 1) + 1;
+      const nextLineEnd = text.indexOf('\n', pos);
+      const after = nextLineEnd === -1 ? '' : text.substring(nextLineEnd);
+
+      scriptTextarea.value = text.substring(0, lastLineStart) + template + after;
+      scriptSuggestions.style.display = 'none';
+      scriptTextarea.focus();
+      updateScriptEditor();
+    }
+
+    scriptTextarea.addEventListener('keydown', (e) => {
+      if (scriptSuggestions.style.display === 'flex' && (e.key === 'Tab' || e.key === 'Enter')) {
+        const activeItem = scriptSuggestions.querySelector('.suggestion-item.active') || scriptSuggestions.querySelector('.suggestion-item');
+        if (activeItem) {
+          e.preventDefault();
+          const syntax = activeItem.querySelector('.suggestion-syntax').textContent;
+          insertSuggestion(syntax);
+        }
+      }
+    });
+
+    scriptTextarea.addEventListener('scroll', () => {
+      document.querySelector('#script-app .script-hl').scrollTop = scriptTextarea.scrollTop;
+      lineNumbersGutter.scrollTop = scriptTextarea.scrollTop;
+    });
+
+    // ==========================================
+    // --- REAL PHYSICS ENGINE (CANNON.JS) ---
+    // ==========================================
+    let physicsWorld = null;
+    let physicsBodies = [];
+
+    function initPhysicsWorld() {
+      physicsWorld = new CANNON.World();
+      physicsWorld.gravity.set(0, 0, 0); // Per-object gravity applies custom!
+      physicsWorld.broadphase = new CANNON.NaiveBroadphase();
+      physicsWorld.solver.iterations = 12;
+
+      // Solid Infinite Ground
+      const groundBody = new CANNON.Body({
+        mass: 0,
+        shape: new CANNON.Plane(),
+        material: new CANNON.Material({ friction: 0.3, restitution: 0.2 })
+      });
+      groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+      physicsWorld.addBody(groundBody);
+    }
+    initPhysicsWorld();
+
+    function createPhysicsBodyForObject(obj) {
+      if (!physicsWorld) return null;
+      let shape;
+      const type = obj.userData.type || 'cube';
+      const sx = Math.max(0.1, obj.scale.x);
+      const sy = Math.max(0.1, obj.scale.y);
+      const sz = Math.max(0.1, obj.scale.z);
+
+      let halfHeight = 1.5 * sy;
+
+      if (type === 'cube') {
+        shape = new CANNON.Box(new CANNON.Vec3(1.5 * sx, 1.5 * sy, 1.5 * sz));
+      } else if (type === 'sphere') {
+        shape = new CANNON.Sphere(1.8 * sx);
+        halfHeight = 1.8 * sx;
+      } else if (type === 'cylinder') {
+        shape = new CANNON.Cylinder(1.5 * sx, 1.5 * sx, 3.0 * sy, 16);
+      } else {
+        shape = new CANNON.Box(new CANNON.Vec3(1.5 * sx, 1.5 * sy, 1.5 * sz));
+      }
+
+      const isDynamic = Boolean(obj.userData.hasPhysics);
+
+      const body = new CANNON.Body({
+        mass: isDynamic ? 2.5 : 0,
+        type: isDynamic ? CANNON.Body.DYNAMIC : CANNON.Body.STATIC,
+        shape: shape,
+        material: new CANNON.Material({
+          friction: 0.4,
+          restitution: obj.userData.bounceFactor !== undefined ? parseFloat(obj.userData.bounceFactor) : 0.2
+        })
+      });
+
+      body.position.copy(obj.position);
+      body.quaternion.copy(obj.quaternion);
+      body.linearDamping = 0.05;
+      body.angularDamping = 0.35;
+
+      // Handle custom Bounce factor logic upon collision
+      body.addEventListener('collide', function(e) {
+        const bounce = obj.userData.bounceFactor !== undefined ? parseFloat(obj.userData.bounceFactor) : 0;
+        if (bounce > 0 && Math.abs(body.velocity.y) > 0.8) {
+          body.velocity.y = -body.velocity.y * bounce;
+        } else if (bounce === 0 && body.velocity.y < 0) {
+          body.velocity.y = 0;
+        }
+      });
+
+      physicsWorld.addBody(body);
+      physicsBodies.push({ mesh: obj, body: body, isDynamic: isDynamic, halfHeight: halfHeight });
+      return body;
+    }
+
+    // ==========================================
+    // --- PLAY / STOP & RUNTIME ENGINE ---
+    // ==========================================
+    const btnPlay = document.getElementById('btn-play');
+    const btnStop = document.getElementById('btn-stop');
+
+    const dialogBox = document.getElementById('engine-dialog-box');
+    const dialogSpeakerName = document.getElementById('dialog-speaker-name');
+    const dialogMessageText = document.getElementById('dialog-message-text');
+    const speechBubble = document.getElementById('engine-speech-bubble');
+
+    let isPlaying = false;
+    let originalSnapshot = null;
+    let scriptVariables = {};
+    let activeAudioSounds = [];
+    let savedWindowStates = {};
+
+    let activeCameraFollow = null;
+    let activeCameraFirstPerson = null;
+    let presetControllerObj = null;
+    let presetFirstPersonObj = null;
+    let presetTurnAroundObj = null;
+    let objectFollowPairs = [];
+    let bubbleTarget = null;
+    let playActiveCameraObject = null;
+
+    let fpYaw = 0, fpPitch = 0;
+
+    function logConsole(msg) {
+      engineConsole.style.display = 'block';
+      const div = document.createElement('div');
+      div.className = 'console-line';
+      div.textContent = `> ${msg}`;
+      engineConsole.appendChild(div);
+      engineConsole.scrollTop = engineConsole.scrollHeight;
+    }
+
+    function findObject(name) {
+      return sceneObjects.find(o => (o.userData.name || '').toLowerCase() === name.toLowerCase());
+    }
+
+    btnPlay.addEventListener('click', () => { if (!isPlaying) playEngine(); });
+    btnRunScript.addEventListener('click', () => { closeScriptApp(); playEngine(); });
+
+    function playEngine() {
+      saveCurrentSceneState();
+
+      savedWindowStates = {
+        properties: propertiesPanel.style.display === 'flex',
+        create: createPanel.style.display === 'flex',
+        assets: assetsPanel.style.display === 'flex',
+        script: scriptApp.style.display === 'flex',
+        ui: uiEditorApp.style.display === 'flex'
+      };
+
+      propertiesPanel.style.display = 'none';
+      createPanel.style.display = 'none';
+      assetsPanel.style.display = 'none';
+      scriptApp.style.display = 'none';
+      uiEditorApp.style.display = 'none';
+
+      [btnProperties, btnCreate, btnAssets, btnScripting, btnUI].forEach(b => b.classList.remove('active'));
+
+      container.appendChild(gameUiCanvas);
+      gameUiCanvas.style.display = 'block';
+      gameUiCanvas.style.opacity = '1';
+
+      originalSnapshot = sceneObjects.map(serializeObjectData);
+
+      isPlaying = true;
+      btnPlay.classList.add('playing');
+      deselectObject();
+      transformControl.detach();
+      selectionBox.visible = false;
+
+      engineConsole.innerHTML = '';
+      scriptVariables = {};
+      activeAudioSounds = [];
+      objectFollowPairs = [];
+
+      gridHelper.visible = false;
+
+      sceneObjects.forEach(o => {
+        if (o.userData.type === 'camera') {
+          o.visible = false;
+          if (o.userData.frustumLines) o.userData.frustumLines.visible = false;
+        }
+      });
+
+      const cameraObjs = sceneObjects.filter(o => o.userData.type === 'camera');
+      if (cameraObjs.length > 0) {
+        playActiveCameraObject = cameraObjs[0];
+        activeRenderCamera = playActiveCameraObject.userData.cameraInstance;
+        btnToggleCameraView.classList.add('active');
+      } else {
+        playActiveCameraObject = null;
+      }
+
+      // Physics World Rebuild
+      physicsBodies = [];
+      initPhysicsWorld();
+      sceneObjects.forEach(o => {
+        if (o.userData.type !== 'camera' && !o.userData.type.startsWith('light') && o.userData.collide !== false) {
+          createPhysicsBodyForObject(o);
+        }
+      });
+
+      runUiScripts();
+
+      let ranAny = false;
+      sceneObjects.forEach(obj => {
+        const sName = obj.userData.appliedScript;
+        if (sName && scriptsData[sName]) {
+          ranAny = true;
+          runScript(scriptsData[sName]);
+        }
+      });
+      if (!ranAny && currentScriptId && scriptsData[currentScriptId]) {
+        runScript(scriptsData[currentScriptId]);
+      }
+    }
+
+    btnStop.addEventListener('click', () => { if (isPlaying) stopEngine(); });
+
+    function stopEngine() {
+      isPlaying = false;
+      btnPlay.classList.remove('playing');
+      gridHelper.visible = true;
+
+      gameUiCanvas.style.display = 'none';
+
+      playActiveCameraObject = null;
+      activeRenderCamera = camera;
+      btnToggleCameraView.classList.remove('active');
+
+      activeCameraFollow = null;
+      activeCameraFirstPerson = null;
+      presetControllerObj = null;
+      presetFirstPersonObj = null;
+      presetTurnAroundObj = null;
+      objectFollowPairs = [];
+      bubbleTarget = null;
+      speechBubble.style.display = 'none';
+      dialogBox.style.display = 'none';
+
+      activeAudioSounds.forEach(s => { s.pause(); });
+      activeAudioSounds = [];
+
+      sceneObjects.forEach(o => {
+        if (o.userData.type === 'camera') {
+          o.visible = true;
+          if (o.userData.frustumLines) o.userData.frustumLines.visible = true;
+        }
+      });
+
+      physicsBodies = [];
+      initPhysicsWorld();
+
+      // Restore Snapshots
+      if (originalSnapshot) {
+        deselectObject();
+        sceneObjects.forEach(o => {
+          if (o.userData.helper) scene.remove(o.userData.helper);
+          scene.remove(o);
+        });
+        sceneObjects = [];
+        originalSnapshot.forEach(d => deserializeObject(d));
+        originalSnapshot = null;
+      }
+
+      engineConsole.style.display = 'none';
+      engineConsole.innerHTML = '';
+
+      if (savedWindowStates.properties) { propertiesPanel.style.display = 'flex'; btnProperties.classList.add('active'); }
+      if (savedWindowStates.create) { createPanel.style.display = 'flex'; btnCreate.classList.add('active'); }
+      if (savedWindowStates.assets) { assetsPanel.style.display = 'flex'; btnAssets.classList.add('active'); }
+      if (savedWindowStates.script) { scriptApp.style.display = 'flex'; btnScripting.classList.add('active'); }
+      if (savedWindowStates.ui) {
+        uiEditorApp.style.display = 'flex';
+        btnUI.classList.add('active');
+        uiWorkspace.appendChild(gameUiCanvas);
+        gameUiCanvas.style.display = 'block';
+      }
+    }
+
+    function isKeyMatching(name) {
+      const code = name.toUpperCase();
+      if (code === 'SPACE') return keys['Space'];
+      if (code === 'SHIFT') return keys['ShiftLeft'] || keys['ShiftRight'];
+      if (keys['Key' + code]) return true;
+      return Boolean(keys[code]);
+    }
+
+    function evaluateMath(expression) {
+      try {
+        let sanitized = expression
+          .replace(/x/gi, '*')
+          .replace(/:/g, '/')
+          .replace(/([a-zA-Z_]\w*)/g, (m) => scriptVariables[m] !== undefined ? scriptVariables[m] : m);
+        return Function('"use strict";return (' + sanitized + ')')();
+      } catch (e) {
+        return expression;
+      }
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isPlaying || !presetFirstPersonObj) return;
+      fpYaw -= e.movementX * 0.0025;
+      fpPitch -= e.movementY * 0.0025;
+      fpPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, fpPitch));
+      camera.rotation.set(fpPitch, fpYaw, 0, 'YXZ');
+    });
+
+    async function runScript(code) {
+      const rawLines = code.split('\n');
+      const lines = rawLines.map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+
+      async function executeBlock(startIdx, endIdx) {
+        let i = startIdx;
+        while (i <= endIdx && isPlaying) {
+          const line = lines[i];
+
+          const outMatch = line.match(/^Output\s+message\s+"([^"]*)"$/i);
+          if (outMatch) { logConsole(outMatch[1]); i++; continue; }
+
+          const waitMatch = line.match(/^Wait\s+([\d.]+)$/i);
+          if (waitMatch) {
+            await new Promise(r => setTimeout(r, parseFloat(waitMatch[1]) * 1000));
+            i++;
+            continue;
+          }
+
+          const sceneMatch = line.match(/^Switch\s+scene\s+to\s+(.+)$/i);
+          if (sceneMatch) {
+            saveCurrentSceneState();
+            switchScene(sceneMatch[1].trim());
+            i++;
+            continue;
+          }
+
+          const videoMatch = line.match(/^Play\s+video\s+(.+)$/i);
+          if (videoMatch) {
+            const vName = videoMatch[1].trim().toLowerCase();
+            const asset = assetLibrary.find(a => a.type === 'video' && a.name.toLowerCase().includes(vName));
+            if (asset) playVideoFullscreen(asset.dataUrl);
+            i++;
+            continue;
+          }
+
+          const soundMatch = line.match(/^(Play|Loop)\s+sound\s+(.+)$/i);
+          if (soundMatch) {
+            const isLoop = soundMatch[1].toLowerCase() === 'loop';
+            const soundName = soundMatch[2].trim().toLowerCase();
+            const asset = assetLibrary.find(a => a.type === 'audio' && a.name.toLowerCase().includes(soundName));
+            if (asset) {
+              const audio = new Audio(asset.dataUrl);
+              audio.loop = isLoop;
+              audio.play();
+              activeAudioSounds.push(audio);
+            }
+            i++;
+            continue;
+          }
+
+          const followMatch = line.match(/^([a-zA-Z0-9_-]+)\s+follow\s+([a-zA-Z0-9_-]+)$/i);
+          if (followMatch) {
+            const follower = findObject(followMatch[1]);
+            const leader = findObject(followMatch[2]);
+            if (follower && leader) {
+              const offset = follower.position.clone().sub(leader.position);
+              objectFollowPairs.push({ follower, leader, offset });
+            }
+            i++;
+            continue;
+          }
+
+          const fpMatch = line.match(/^Preset\s+first\s+person\s+([a-zA-Z0-9_-]+)$/i);
+          if (fpMatch) {
+            const target = findObject(fpMatch[1]);
+            if (target) {
+              presetFirstPersonObj = target;
+              target.userData.hasPhysics = true;
+              activeRenderCamera = camera;
+              let existing = physicsBodies.find(p => p.mesh === target);
+              if (existing) {
+                existing.body.type = CANNON.Body.DYNAMIC;
+                existing.body.mass = 2.5;
+                existing.body.updateMassProperties();
+                existing.body.wakeUp();
+                existing.isDynamic = true;
+              } else {
+                createPhysicsBodyForObject(target);
+              }
+            }
+            i++;
+            continue;
+          }
+
+          const turnMatch = line.match(/^Preset\s+turn\s+around\s+([a-zA-Z0-9_-]+)$/i);
+          if (turnMatch) {
+            const target = findObject(turnMatch[1]);
+            if (target) presetTurnAroundObj = target;
+            i++;
+            continue;
+          }
+
+          const dialogMatch = line.match(/^Dialog\s+([a-zA-Z0-9_-]+)\s+"([^"]*)"$/i);
+          if (dialogMatch) {
+            dialogSpeakerName.textContent = dialogMatch[1];
+            dialogMessageText.textContent = dialogMatch[2];
+            dialogBox.style.display = 'flex';
+            await new Promise(r => setTimeout(r, 2600));
+            dialogBox.style.display = 'none';
+            i++;
+            continue;
+          }
+
+          const bubbleMatch = line.match(/^Bubble\s+([a-zA-Z0-9_-]+)\s+"([^"]*)"$/i);
+          if (bubbleMatch) {
+            const target = findObject(bubbleMatch[1]);
+            if (target) {
+              speechBubble.textContent = bubbleMatch[2];
+              speechBubble.style.display = 'block';
+              bubbleTarget = target;
+            }
+            i++;
+            continue;
+          }
+
+          const physMatch = line.match(/^Physics\s+([a-zA-Z0-9_-]+)$/i);
+          if (physMatch) {
+            const target = findObject(physMatch[1]);
+            if (target) {
+              target.userData.hasPhysics = true;
+              let existing = physicsBodies.find(p => p.mesh === target);
+              if (existing) {
+                existing.body.type = CANNON.Body.DYNAMIC;
+                existing.body.mass = 2.5;
+                existing.body.updateMassProperties();
+                existing.body.wakeUp();
+                existing.isDynamic = true;
+              } else {
+                createPhysicsBodyForObject(target);
+              }
+            }
+            i++;
+            continue;
+          }
+
+          const noPhysMatch = line.match(/^No\s+Physics\s+([a-zA-Z0-9_-]+)$/i);
+          if (noPhysMatch) {
+            const target = findObject(noPhysMatch[1]);
+            if (target) {
+              target.userData.hasPhysics = false;
+              let existing = physicsBodies.find(p => p.mesh === target);
+              if (existing) {
+                existing.body.type = CANNON.Body.STATIC;
+                existing.body.mass = 0;
+                existing.body.velocity.set(0, 0, 0);
+                existing.body.angularVelocity.set(0, 0, 0);
+                existing.body.updateMassProperties();
+                existing.isDynamic = false;
+              }
+            }
+            i++;
+            continue;
+          }
+
+          const camFollowMatch = line.match(/^Camera\s+follow\s+([a-zA-Z0-9_-]+)$/i);
+          if (camFollowMatch) {
+            const target = findObject(camFollowMatch[1]);
+            if (target) { activeCameraFollow = target; activeCameraFirstPerson = null; }
+            i++;
+            continue;
+          }
+
+          const camFpMatch = line.match(/^Camera\s+first\s+person\s+([a-zA-Z0-9_-]+)(?:\s+(-?[\d.]+))?$/i);
+          if (camFpMatch) {
+            const target = findObject(camFpMatch[1]);
+            if (target) {
+              activeCameraFirstPerson = { obj: target, heightOffset: parseFloat(camFpMatch[2]) || 1.6 };
+              activeCameraFollow = null;
+            }
+            i++;
+            continue;
+          }
+
+          const ctrlMatch = line.match(/^Preset\s+controller\s+([a-zA-Z0-9_-]+)$/i);
+          if (ctrlMatch) {
+            const target = findObject(ctrlMatch[1]);
+            if (target) {
+              presetControllerObj = target;
+              target.userData.hasPhysics = true;
+              let existing = physicsBodies.find(p => p.mesh === target);
+              if (existing) {
+                existing.body.type = CANNON.Body.DYNAMIC;
+                existing.body.mass = 2.5;
+                existing.body.updateMassProperties();
+                existing.body.wakeUp();
+                existing.isDynamic = true;
+              } else {
+                createPhysicsBodyForObject(target);
+              }
+            }
+            i++;
+            continue;
+          }
+
+          const assignMatch = line.match(/^([a-zA-Z_]\w*)\s*=\s*(.+)$/);
+          if (assignMatch) {
+            scriptVariables[assignMatch[1]] = evaluateMath(assignMatch[2].trim());
+            i++;
+            continue;
+          }
+
+          const keyMatch = line.match(/^If\s+([a-zA-Z0-9_-]+)\s+pressed\s+then$/i);
+          if (keyMatch) {
+            const blockEnd = findMatchingEnd(lines, i);
+            if (isKeyMatching(keyMatch[1])) await executeBlock(i + 1, blockEnd - 1);
+            i = blockEnd + 1;
+            continue;
+          }
+
+          const repeatMatch = line.match(/^Repeat\s+(\d+)$/i);
+          if (repeatMatch) {
+            const count = parseInt(repeatMatch[1]);
+            const blockEnd = findMatchingEnd(lines, i);
+            for (let r = 0; r < count && isPlaying; r++) await executeBlock(i + 1, blockEnd - 1);
+            i = blockEnd + 1;
+            continue;
+          }
+
+          i++;
+        }
+      }
+
+      function findMatchingEnd(lines, start) {
+        let depth = 0;
+        for (let j = start; j < lines.length; j++) {
+          if (/^(Repeat|If\s+touch|If\b.*?\bpressed)/i.test(lines[j])) depth++;
+          else if (/^end$/i.test(lines[j])) {
+            depth--;
+            if (depth === 0) return j;
+          }
+        }
+        return lines.length - 1;
+      }
+      await executeBlock(0, lines.length - 1);
+    }
+
+    // ==========================================
+    // --- SAVE & IMPORT (.GE3) INCLUDING BASE64 ---
+    // ==========================================
+    const btnSave = document.getElementById('btn-save');
+    const btnImport = document.getElementById('btn-import');
+    const importFileInput = document.getElementById('import-file-input');
+
+    btnSave.addEventListener('click', () => {
+      saveCurrentSceneState();
+      if (currentScriptId) scriptsData[currentScriptId] = scriptTextarea.value;
+      const data = {
+        engine: "Geo Engine",
+        version: "3.0",
+        format: "GE3",
+        scenes: scenesData,
+        scripts: scriptsData,
+        universalUiScript: universalUiScript,
+        assets: assetLibrary // Full Base64 assets (MP4, Audio, Images, Models)
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'project.ge3';
+      a.click();
+    });
+
+    btnImport.addEventListener('click', () => importFileInput.click());
+    importFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (data.format !== "GE3") return alert("Not a valid .ge3 file.");
+          deselectObject();
+
+          if (data.scenes) scenesData = data.scenes;
+          if (data.scripts) scriptsData = data.scripts;
+          if (data.universalUiScript !== undefined) universalUiScript = data.universalUiScript;
+          if (data.assets) assetLibrary = data.assets;
+          renderAssetsGrid();
+          updateScriptDropdowns();
+
+          currentSceneName = Object.keys(scenesData)[0] || "Scene 1";
+          switchScene(currentSceneName);
+
+          importFileInput.value = '';
+        } catch (err) { alert("Error parsing .ge3 file"); }
+      };
+      reader.readAsText(file);
+    });
+
+    window.addEventListener('resize', () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      sceneObjects.forEach(o => {
+        if (o.userData.cameraInstance) {
+          o.userData.cameraInstance.aspect = width / height;
+          o.userData.cameraInstance.updateProjectionMatrix();
+        }
+      });
+      renderer.setSize(width, height);
+    });
+
+    // ==========================================
+    // --- MAIN ENGINE RENDER & PHYSICS LOOP ---
+    // ==========================================
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (!isPlaying) {
+        const step = 2;
+        gridHelper.position.x = Math.floor(camera.position.x / step) * step;
+        gridHelper.position.z = Math.floor(camera.position.z / step) * step;
+        handleMovement();
+      }
+
+      // Continuous Gameplay & Physics
+      if (isPlaying) {
+        if (playActiveCameraObject && !activeCameraFollow && !activeCameraFirstPerson && !presetFirstPersonObj) {
+          playActiveCameraObject.updateWorldMatrix(true, true);
+          const cInst = playActiveCameraObject.userData.cameraInstance;
+          cInst.position.copy(playActiveCameraObject.position);
+          cInst.quaternion.copy(playActiveCameraObject.quaternion);
+          activeRenderCamera = cInst;
+        }
+
+        // --- Custom Physics Dynamics Loop ---
+        if (physicsWorld) {
+          // Pre-step forces: Per-object gravity, air resistance & ground friction
+          physicsBodies.forEach(p => {
+            if (p.isDynamic) {
+              const obj = p.mesh;
+              const body = p.body;
+
+              // Apply custom gravity force
+              const grav = obj.userData.gravity !== undefined ? parseFloat(obj.userData.gravity) : 25;
+              body.force.y -= grav * body.mass;
+
+              const halfH = p.halfHeight || 1.5;
+              const onGround = body.position.y <= halfH + 0.1;
+
+              if (onGround) {
+                // Ground Friction factor
+                const fric = Math.max(1, parseFloat(obj.userData.friction || 1.2));
+                const damp = 1 + (fric - 1) * 0.15;
+                body.velocity.x /= damp;
+                body.velocity.z /= damp;
+                if (body.position.y < halfH) {
+                  body.position.y = halfH;
+                  if (obj.userData.bounceFactor <= 0) body.velocity.y = Math.max(0, body.velocity.y);
+                }
+              } else {
+                // Air Resistance Factor (divides velX, velY, velZ)
+                const arf = Math.max(1, parseFloat(obj.userData.airResistance || 1.0));
+                if (arf > 1) {
+                  const airDamp = 1 + (arf - 1) * 0.05;
+                  body.velocity.x /= airDamp;
+                  body.velocity.y /= airDamp;
+                  body.velocity.z /= airDamp;
+                }
+              }
+            }
+          });
+
+          physicsWorld.step(1 / 60);
+
+          // Sync Three.js meshes
+          physicsBodies.forEach(p => {
+            if (p.isDynamic) {
+              p.mesh.position.copy(p.body.position);
+              p.mesh.quaternion.copy(p.body.quaternion);
+            }
+          });
+        }
+
+        // Object Follow Pairs
+        objectFollowPairs.forEach(pair => {
+          pair.follower.position.copy(pair.leader.position).add(pair.offset);
+          const p = physicsBodies.find(b => b.mesh === pair.follower);
+          if (p) p.body.position.copy(pair.follower.position);
+        });
+
+        // Preset Controller
+        if (presetControllerObj) {
+          const p = physicsBodies.find(b => b.mesh === presetControllerObj);
+          if (p) {
+            const moveSpeed = 8.5;
+            if (keys['KeyW']) p.body.velocity.z = -moveSpeed;
+            else if (keys['KeyS']) p.body.velocity.z = moveSpeed;
+            if (keys['KeyA']) p.body.velocity.x = -moveSpeed;
+            else if (keys['KeyD']) p.body.velocity.x = moveSpeed;
+            if (keys['Space'] && Math.abs(p.body.velocity.y) < 0.25) p.body.velocity.y = 9.5;
+          }
+        }
+
+        // Preset First Person Controller
+        if (presetFirstPersonObj) {
+          const p = physicsBodies.find(b => b.mesh === presetFirstPersonObj);
+          camera.position.set(presetFirstPersonObj.position.x, presetFirstPersonObj.position.y + 1.6, presetFirstPersonObj.position.z);
+          activeRenderCamera = camera;
+
+          if (p) {
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            forward.y = 0; forward.normalize();
+            const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+            const moveSpeed = 8.0;
+            let moveDir = new THREE.Vector3();
+            if (keys['KeyW']) moveDir.add(forward);
+            if (keys['KeyS']) moveDir.sub(forward);
+            if (keys['KeyA']) moveDir.sub(right);
+            if (keys['KeyD']) moveDir.add(right);
+
+            if (moveDir.lengthSq() > 0) {
+              moveDir.normalize().multiplyScalar(moveSpeed);
+              p.body.velocity.x = moveDir.x;
+              p.body.velocity.z = moveDir.z;
+            }
+            if (keys['Space'] && Math.abs(p.body.velocity.y) < 0.25) p.body.velocity.y = 9.0;
+          }
+        }
+
+        // Preset Turn Around
+        if (presetTurnAroundObj) {
+          if (keys['ArrowLeft'] || keys['KeyA']) presetTurnAroundObj.rotation.y += 0.05;
+          if (keys['ArrowRight'] || keys['KeyD']) presetTurnAroundObj.rotation.y -= 0.05;
+          const p = physicsBodies.find(b => b.mesh === presetTurnAroundObj);
+          if (p) p.body.quaternion.copy(presetTurnAroundObj.quaternion);
+        }
+
+        // Camera Follow
+        if (activeCameraFollow) {
+          const targetPos = activeCameraFollow.position;
+          camera.position.set(targetPos.x, targetPos.y + 4, targetPos.z + 9);
+          camera.lookAt(targetPos);
+          activeRenderCamera = camera;
+        }
+
+        // Speech Bubble
+        if (bubbleTarget && speechBubble.style.display === 'block') {
+          const pos = bubbleTarget.position.clone();
+          pos.y += 2.4;
+          pos.project(activeRenderCamera);
+          const x = (pos.x * 0.5 + 0.5) * container.clientWidth;
+          const y = (-pos.y * 0.5 + 0.5) * container.clientHeight;
+          speechBubble.style.left = `${x}px`;
+          speechBubble.style.top = `${y}px`;
+        }
+      }
+
+      if (!isPlaying && selectionBox.visible && selectedObject) selectionBox.update();
+
+      renderer.render(scene, activeRenderCamera);
+    }
+    animate();
+  </script>
+</body>
+</html>
